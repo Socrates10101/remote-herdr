@@ -60,11 +60,13 @@ func run() error {
 		claudeDir = filepath.Join(home, ".claude")
 	}
 	projects := flag.String("projects-dir", filepath.Join(claudeDir, "projects"), "Claude Code projects directory ($CLAUDE_CONFIG_DIR/projects)")
+	sessions := flag.String("sessions-dir", filepath.Join(claudeDir, "sessions"), "Claude Code running-session registry ($CLAUDE_CONFIG_DIR/sessions), used to find forked sessions")
 	flag.Parse()
 
 	srv, err := server.New(server.Config{
 		Herdr:        &herdr.Client{SocketPath: *herdrSock},
 		ProjectsDir:  *projects,
+		SessionsDir:  *sessions,
 		AllowedUsers: splitSet(*allowUsers),
 		Origin:       *origin,
 		AllowedSlash: splitSet(*allowSlash),

@@ -2,10 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,7 +22,10 @@ type fakeHerdr struct {
 	keys    []string
 }
 
-func (f *fakeHerdr) List(context.Context) ([]herdr.Agent, error) { return f.agents, nil }
+// List returns a copy, like the real client, so the server may annotate it.
+func (f *fakeHerdr) List(context.Context) ([]herdr.Agent, error) {
+	return append([]herdr.Agent(nil), f.agents...), nil
+}
 func (f *fakeHerdr) Read(context.Context, string, string, int) (string, error) {
 	return f.screen, nil
 }
@@ -236,5 +242,39 @@ func TestAgentsCarryHost(t *testing.T) {
 	w := do(s, req("GET", "/api/agents", ""))
 	if !strings.Contains(w.Body.String(), `"host":"`+s.cfg.HostName+`"`) || s.cfg.HostName == "" {
 		t.Fatalf("host missing: %s", w.Body)
+	}
+}
+
+func TestTranscriptForForkedSession(t *testing.T) {
+	s, f := newTest(t, "idle")
+	id := "def2e8ec-c8de-4c6b-aeca-bb60277d3200"
+	cwd := f.agents[0].Cwd
+	f.agents[0].Agent = "claude"
+	f.agents[0].Title = "資料 ⑂ fork"
+	s.cfg.SessionsDir = t.TempDir()
+	pid := os.Getpid()
+	reg := fmt.Sprintf(`{"pid":%d,"sessionId":%q,"cwd":%q,"kind":"bg","name":"資料 ⑂ fork"}`, pid, id, cwd)
+	if err := os.WriteFile(filepath.Join(s.cfg.SessionsDir, fmt.Sprintf("%d.json", pid)), []byte(reg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	proj := filepath.Join(s.cfg.ProjectsDir, "-w")
+	line := `{"type":"user","uuid":"u1","message":{"role":"user","content":"forked hello"}}` + "\n"
+	if err := os.MkdirAll(proj, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, id+".jsonl"), []byte(line), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	w := do(s, req("GET", "/api/agents/w1:p1/transcript", ""))
+	if !strings.Contains(w.Body.String(), "forked hello") {
+		t.Fatalf("forked transcript missing: %s", w.Body)
+	}
+
+	// A title that matches nothing must not borrow another session's log.
+	f.agents[0].Title = "別のセッション"
+	w = do(s, req("GET", "/api/agents/w1:p1/transcript", ""))
+	if strings.Contains(w.Body.String(), "forked hello") {
+		t.Fatalf("unmatched title showed a transcript: %s", w.Body)
 	}
 }

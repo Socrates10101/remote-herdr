@@ -122,6 +122,7 @@ macOS 向けの launchd 設定はまだ用意していません。
 | `-allow-slash` | なし | リモートから送ってよいスラッシュコマンド（カンマ区切り） |
 | `-herdr-socket` | `$HERDR_SOCKET_PATH` か `~/.config/herdr/herdr.sock` | herdr の API ソケット |
 | `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects`（未設定なら `~/.claude/projects`） | Claude Code の会話記録 |
+| `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions`（未設定なら `~/.claude/sessions`） | 動いているセッションの一覧。fork したセッションの会話記録を探すのに使う |
 | `-host-name` | hostname | 画面に出すマシン名（将来の複数ホスト対応用） |
 | `-access-log` | オフ | 調査用のアクセスログ |
 

@@ -19,6 +19,7 @@ iPhone/PC ブラウザ
 tailscale serve ──(unix socket 0600)──▶ remote-herdr（Go, 単一バイナリ）
                                           ├─ herdr ソケット API（agent.list/read/prompt/send_keys）
                                           ├─ ~/.claude/projects/*/<session>.jsonl（読み取りのみ）
+                                          ├─ ~/.claude/sessions/<pid>.json（読み取りのみ）
                                           └─ 埋め込み UI（Vite + Svelte のビルド成果物）
 ```
 
@@ -66,6 +67,10 @@ herdr の CLI ではなくソケット API を使う。CLI は `--` 区切りに
 - 端末で入力途中のときにスマホから送ると、入力欄の文字と混ざる。送信前に端末を確認する。
 - JSONL は Claude Code の内部形式で、版によって変わる。会話タブは最善努力で、
   確実な表示は「画面」タブ（herdr の画面読み取り）。
+- fork したセッションはペインの外でバックグラウンドとして動き、ペインには `claude attach` や
+  `claude agents` しかない。herdr はセッション ID を返さないので、`~/.claude/sessions/<pid>.json` の
+  `kind: bg` のうち、`name` がペインのタイトルと一致し `cwd` も同じものを 1 件だけ見つけたときに使う。
+  一致が 0 件か 2 件以上なら会話タブは空になる（取り違えを防ぐため）。
 - cwd がホームディレクトリのセッションでは、ホーム配下（ドット以外）を閲覧できる。
 - 認証は tailnet の ACL と Tailscale のユーザー識別に依存する。tagged device からは使えない。
 

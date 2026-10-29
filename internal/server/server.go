@@ -37,6 +37,7 @@ type Herdr interface {
 type Config struct {
 	Herdr        Herdr
 	ProjectsDir  string          // ~/.claude/projects
+	SessionsDir  string          // ~/.claude/sessions; empty disables background session lookup
 	AllowedUsers map[string]bool // Tailscale logins allowed to use the UI
 	Origin       string          // public origin, e.g. https://host.tailnet.ts.net:8450
 	AllowedSlash map[string]bool // slash commands allowed in prompts
@@ -215,8 +216,20 @@ func (s *Server) withAgent(next agentHandler) http.HandlerFunc {
 // listAgents lists local herdr agents stamped with this host's name.
 func (s *Server) listAgents(ctx context.Context) ([]herdr.Agent, error) {
 	agents, err := s.cfg.Herdr.List(ctx)
+	var bg []transcript.Background
+	loaded := false
 	for i := range agents {
 		agents[i].Host = s.cfg.HostName
+		a := &agents[i]
+		if a.SessionID != "" || a.Agent != "claude" || s.cfg.SessionsDir == "" {
+			continue
+		}
+		// Forked and background sessions run outside the pane, so herdr
+		// reports no session id. Match them by title instead.
+		if !loaded {
+			bg, loaded = transcript.LiveBackground(s.cfg.SessionsDir), true
+		}
+		a.SessionID = transcript.MatchBackground(bg, a.Title, a.Cwd)
 	}
 	return agents, err
 }
