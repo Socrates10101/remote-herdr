@@ -209,6 +209,10 @@ main { padding: calc(var(--topbar) + env(safe-area-inset-top)) 0 calc(env(safe-a
 .tool-arg { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 12.5px var(--mono); color: var(--text-3); }
 .tool.failed summary, .tool.failed .tool-arg { color: var(--attention); }
 .tool-body { margin: 0 0 12px 21px; padding: 10px 12px; background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--r-ctl); font: 12.5px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow-y: auto; }
+.tool-group-body { margin: 0 0 8px 21px; }
+.tool-group-body > .tool:last-child { border-bottom: 0; }
+.tool-group-body > .attachment { margin: 8px 0; }
+.tool-latest { margin: 6px 0 0 21px; font: 12.5px var(--mono); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .working { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); padding-left: 40px; }
 .working.waiting { color: var(--attention); }
