@@ -7,7 +7,7 @@
   import Icon from './components/Icon.svelte'
   import Spark from './components/Spark.svelte'
   import { watchEdgeSwipe } from './lib/swipe'
-  import { setHome, shortPath } from './lib/home.svelte'
+  import { setAllowShell, setHome, shortPath } from './lib/home.svelte'
 
   let agents = $state<Agent[]>([])
   let sizes = $state<Record<string, number>>({})
@@ -78,6 +78,7 @@
       .then((m) => {
         user = m.user
         setHome(m.home)
+        setAllowShell(m.allowShell)
       })
       .catch(() => {})
     // First paint does not wait for the event stream.

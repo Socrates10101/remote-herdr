@@ -1,10 +1,19 @@
-// The server's home directory, so paths can be shown as "~/…" on any OS.
-// Reactive: lists rendered before /api/me answers update when it does.
+// Server facts from /api/me: the home directory, so paths can be shown as
+// "~/…" on any OS, and whether "!" shell prompts are allowed.
+// Reactive: views rendered before /api/me answers update when it does.
 
-const home = $state({ dir: '' })
+const home = $state({ dir: '', allowShell: false })
 
 export function setHome(dir: string) {
   home.dir = dir.replace(/\/+$/, '')
+}
+
+export function setAllowShell(v: boolean) {
+  home.allowShell = v
+}
+
+export function shellAllowed(): boolean {
+  return home.allowShell
 }
 
 export function shortPath(path: string): string {

@@ -23,7 +23,7 @@ Not an agent platform: it adds no accounts, relays, or new execution paths. It a
 ## Capabilities and Constraints
 - Read: agent list with status (blocked / working / idle / done), conversation transcript, terminal screen text, project files (read-only, no dotfiles).
 - Act: send a prompt; answer a selection dialog (permission prompts, AskUserQuestion single/multi select) by moving the cursor and pressing Enter; cancel or interrupt (Esc).
-- Never: run shell commands, write files, start agents. Prompts starting with `!` are refused.
+- Never: write files, start agents, or add execution paths of its own. Prompts starting with `!` (Claude Code shell mode) are refused unless the owner starts the server with `-allow-shell`.
 - UI copy is Japanese.
 
 ## Brand Commitments

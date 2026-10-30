@@ -17,12 +17,12 @@ func ValidPaneID(s string) bool { return paneIDPattern.MatchString(s) }
 
 // ValidatePrompt enforces what a remote prompt may contain.
 //
-//   - Leading "!" is refused: Claude Code runs it as a shell command without
-//     a permission prompt.
+//   - Leading "!" is refused unless allowShell is set: Claude Code runs it
+//     as a shell command without a permission prompt.
 //   - Leading "/" is refused unless the command is allow-listed.
 //   - Control characters other than newline and tab are refused so text
 //     cannot inject terminal escape or bracketed-paste sequences.
-func ValidatePrompt(text string, allowedSlash map[string]bool) error {
+func ValidatePrompt(text string, allowedSlash map[string]bool, allowShell bool) error {
 	if !utf8.ValidString(text) {
 		return errors.New("prompt is not valid UTF-8")
 	}
@@ -41,7 +41,7 @@ func ValidatePrompt(text string, allowedSlash map[string]bool) error {
 			return errors.New("prompt contains control characters")
 		}
 	}
-	if strings.HasPrefix(trimmed, "!") {
+	if strings.HasPrefix(trimmed, "!") && !allowShell {
 		return errors.New(`prompts starting with "!" run shell commands and are not allowed`)
 	}
 	if strings.HasPrefix(trimmed, "/") {

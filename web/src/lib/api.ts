@@ -111,7 +111,7 @@ function agentBase(r: AgentRef): string {
 }
 
 export const api = {
-  me: () => get<{ user: string; host: string; home: string }>('/api/me'),
+  me: () => get<{ user: string; host: string; home: string; allowShell: boolean }>('/api/me'),
   agents: () => get<{ agents: Agent[] }>('/api/agents'),
   screen: (r: AgentRef, source = 'visible') =>
     get<{ text: string; status: Status }>(`${agentBase(r)}/screen?source=${source}`),

@@ -88,8 +88,9 @@ macOS 向けの launchd 設定はまだ用意していません。
 ### 注意
 
 - 端末で入力の途中にスマホから送ると、入力欄の文字と混ざります。
-- `!` で始まる入力（Claude Code のシェル実行）は送れません。スラッシュコマンドも既定では送れません
-  （`-allow-slash /compact` のように個別に許可できます）。
+- `!` で始まる入力（Claude Code のシェル実行）は既定では送れません（`-allow-shell` で許可できます。
+  許可すると、この UI に入れる端末からこのマシンのコマンドを確認なしで実行できる状態になります）。
+  スラッシュコマンドも既定では送れません（`-allow-slash /compact` のように個別に許可できます）。
 
 ## 安全のために
 
@@ -120,6 +121,7 @@ macOS 向けの launchd 設定はまだ用意していません。
 | `-allow-user` | （必須） | 許可する Tailscale ログイン（カンマ区切り） |
 | `-listen` | `unix:$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock` | `unix:/path` か `tcp:127.0.0.1:PORT`（loopback のみ） |
 | `-allow-slash` | なし | リモートから送ってよいスラッシュコマンド（カンマ区切り） |
+| `-allow-shell` | オフ | `!` で始まる入力（Claude Code のシェル実行）を許可する |
 | `-herdr-socket` | `$HERDR_SOCKET_PATH` か `~/.config/herdr/herdr.sock` | herdr の API ソケット |
 | `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects`（未設定なら `~/.claude/projects`） | Claude Code の会話記録 |
 | `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions`（未設定なら `~/.claude/sessions`） | 動いているセッションの一覧。fork したセッションの会話記録を探すのに使う |

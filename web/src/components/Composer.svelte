@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, type Agent } from '../lib/api'
   import Icon from './Icon.svelte'
+  import { shellAllowed } from '../lib/home.svelte'
 
   let { agent }: { agent: Agent } = $props()
 
@@ -10,7 +11,8 @@
   let field: HTMLTextAreaElement | undefined = $state()
 
   // Mirrors the server rule so the reason shows before sending.
-  const blockedInput = $derived(text.trimStart().startsWith('!'))
+  const shellInput = $derived(text.trimStart().startsWith('!'))
+  const blockedInput = $derived(shellInput && !shellAllowed())
   const canSend = $derived(!busy && text.trim() !== '' && !blockedInput)
 
   $effect(() => {
@@ -55,7 +57,9 @@
 </script>
 
 {#if blockedInput}
-  <p class="dock-note">「!」で始まる入力はシェルを直接動かすため、ここからは送れません。</p>
+  <p class="dock-note">「!」で始まる入力はシェルを直接動かすため、ここからは送れません（`-allow-shell` で許可できます）。</p>
+{:else if shellInput}
+  <p class="dock-note">「!」で始まる入力は、確認なしでこのマシンのシェルで実行されます。</p>
 {:else if error}
   <p class="dock-note error">送れませんでした: {error}</p>
 {/if}

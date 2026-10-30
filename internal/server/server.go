@@ -41,7 +41,11 @@ type Config struct {
 	AllowedUsers map[string]bool // Tailscale logins allowed to use the UI
 	Origin       string          // public origin, e.g. https://host.tailnet.ts.net:8450
 	AllowedSlash map[string]bool // slash commands allowed in prompts
-	Static       fs.FS           // built web UI
+	// AllowShell lets prompts start with "!" (Claude Code's shell mode).
+	// Off by default: anyone who can reach the UI as an allowed user would
+	// otherwise get a shell on this machine.
+	AllowShell   bool
+	Static       fs.FS // built web UI
 	Logger       *log.Logger
 	PollInterval time.Duration
 	// AccessLog logs every request (method, path, status, fetch metadata,
@@ -236,7 +240,12 @@ func (s *Server) listAgents(ctx context.Context) ([]herdr.Agent, error) {
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	home, _ := os.UserHomeDir()
-	writeJSON(w, map[string]any{"user": r.Header.Get(userHeader), "host": s.cfg.HostName, "home": home})
+	writeJSON(w, map[string]any{
+		"user":       r.Header.Get(userHeader),
+		"host":       s.cfg.HostName,
+		"home":       home,
+		"allowShell": s.cfg.AllowShell,
+	})
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
@@ -356,7 +365,7 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, a herdr.Ag
 		httpError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if err := ValidatePrompt(body.Text, s.cfg.AllowedSlash); err != nil {
+	if err := ValidatePrompt(body.Text, s.cfg.AllowedSlash, s.cfg.AllowShell); err != nil {
 		httpError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
@@ -364,7 +373,11 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, a herdr.Ag
 		httpError(w, http.StatusConflict, "agent is waiting for an approval")
 		return
 	}
-	s.audit(r, "prompt", a.PaneID, fmt.Sprintf("%d chars", len([]rune(body.Text))))
+	kind := "prompt"
+	if strings.HasPrefix(strings.TrimSpace(body.Text), "!") {
+		kind = "shell"
+	}
+	s.audit(r, kind, a.PaneID, fmt.Sprintf("%d chars", len([]rune(body.Text))))
 	if err := s.cfg.Herdr.Prompt(r.Context(), a.PaneID, body.Text); err != nil {
 		s.herdrError(w, err)
 		return

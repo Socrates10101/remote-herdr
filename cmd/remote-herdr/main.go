@@ -52,6 +52,7 @@ func run() error {
 	origin := flag.String("origin", "", "public origin served by tailscale serve, e.g. https://host.tailnet.ts.net:8450 (required)")
 	allowUsers := flag.String("allow-user", "", "comma-separated Tailscale logins allowed to use the UI (required)")
 	allowSlash := flag.String("allow-slash", "", "comma-separated slash commands allowed in remote prompts, e.g. /compact")
+	allowShell := flag.Bool("allow-shell", false, "allow prompts starting with \"!\" (Claude Code shell mode; runs commands on this machine without a permission prompt)")
 	herdrSock := flag.String("herdr-socket", herdr.DefaultSocketPath(), "herdr API socket")
 	hostName := flag.String("host-name", "", "name shown for this machine (default: hostname)")
 	accessLog := flag.Bool("access-log", false, "log every request (for debugging clients)")
@@ -70,6 +71,7 @@ func run() error {
 		AllowedUsers: splitSet(*allowUsers),
 		Origin:       *origin,
 		AllowedSlash: splitSet(*allowSlash),
+		AllowShell:   *allowShell,
 		Static:       web.Dist(),
 		HostName:     *hostName,
 		AccessLog:    *accessLog,

@@ -155,6 +155,27 @@ func TestPromptRejectsShellAndSlash(t *testing.T) {
 	}
 }
 
+func TestPromptAllowShell(t *testing.T) {
+	s, f := newTest(t, "idle")
+	s.cfg.AllowShell = true
+	if w := do(s, req("POST", "/api/agents/w1:p1/prompt", `{"text":"!ls"}`)); w.Code != 200 {
+		t.Fatalf("shell prompt with allow-shell: got %d %s", w.Code, w.Body)
+	}
+	if len(f.prompts) != 1 || f.prompts[0] != "!ls" {
+		t.Fatalf("prompts = %v", f.prompts)
+	}
+	// Slash and control-character rules are unchanged.
+	for _, text := range []string{"/clear", "!a\x1b[201~b"} {
+		b := `{"text":` + jsonString(text) + `}`
+		if w := do(s, req("POST", "/api/agents/w1:p1/prompt", b)); w.Code != http.StatusUnprocessableEntity {
+			t.Errorf("%q: got %d", text, w.Code)
+		}
+	}
+	if len(f.prompts) != 1 {
+		t.Fatalf("unexpected prompts %v", f.prompts)
+	}
+}
+
 func TestPromptRefusedWhileBlocked(t *testing.T) {
 	s, f := newTest(t, "blocked")
 	if w := do(s, req("POST", "/api/agents/w1:p1/prompt", `{"text":"hi"}`)); w.Code != http.StatusConflict {
