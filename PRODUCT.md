@@ -1,7 +1,5 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
 web
@@ -29,7 +27,7 @@ Not an agent platform: it adds no accounts, relays, or new execution paths. It a
 ## Brand Commitments
 - Name: remote-herdr.
 - The owner asked for the conventions of a typical AI chat app (familiar conversation layout) rather than a bespoke dashboard look, with carefully tuned typography for Japanese and English reading.
-- Layout and sizes follow the internal Spark Chat design; colours stay remote-herdr's own (Claude-app lineage). Typography: IBM Plex Sans JP / Mono.
+- Layout and sizes follow the conventions of a typical AI chat app; colours stay remote-herdr's own (Claude-app lineage). Typography: IBM Plex Sans JP / Mono.
 - Phones: the header hides while reading and the composer is easy to bring back; wide screens keep both visible with the session list in a left sidebar.
 
 ## Evidence on Hand

@@ -1,8 +1,8 @@
 # Design
 
-remote-herdr takes its layout and sizes from the internal Spark Chat design
-(v5 mockup) and keeps its own colours (warm neutrals + clay accent, Claude-app
-lineage). Source of truth: `web/src/app.css`.
+remote-herdr follows the layout and sizing conventions of a typical AI chat app
+(sidebar + single thread column) and keeps its own colours (warm neutrals + clay
+accent, Claude-app lineage). Source of truth: `web/src/app.css`.
 
 ## Principles
 

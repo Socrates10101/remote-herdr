@@ -1,5 +1,6 @@
 # systemd user unit: ~/.config/systemd/user/remote-herdr.service
-# 値を自分の環境に合わせてから `systemctl --user enable --now remote-herdr` する。
+# Adjust ExecStart (binary path, -origin, -allow-user) for your machine, then run
+# `systemctl --user enable --now remote-herdr`.
 [Unit]
 Description=remote-herdr web UI for herdr agents
 After=default.target

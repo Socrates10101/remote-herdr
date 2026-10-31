@@ -1,4 +1,4 @@
-/* remote-herdr — layout and sizes follow the Spark Chat design (sidebar 268px,
+/* remote-herdr — layout and sizes follow a conventional chat-app layout (sidebar 268px,
    56px top bar with tabs on the right, 880px thread, 24px-radius composer);
    colours stay remote-herdr's own warm neutrals and clay accent.
    Light/dark follow the system. */
@@ -197,7 +197,7 @@ main { padding: calc(var(--topbar) + env(safe-area-inset-top)) 0 calc(env(safe-a
 .code pre { margin: 0; padding: 12px; overflow-x: auto; font: 13px/1.65 var(--mono); background: transparent; }
 .code pre code { background: none; padding: 0; font: inherit; }
 
-/* Tool calls read like Spark Chat's "thinking" rows: quiet lines between rules. */
+/* Tool calls read like "thinking" rows in chat apps: quiet lines between rules. */
 .tool { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0; }
 .tool + .tool { border-top: 0; }
 .md + .tool, .tool + .md, .tool + .attachment, .attachment + .tool { margin-top: 12px; }
@@ -301,7 +301,7 @@ main { padding: calc(var(--topbar) + env(safe-area-inset-top)) 0 calc(env(safe-a
 .swiping main > :not(.dock), .swiping .topbar { transform: translateX(var(--swipe-x, 0)); transition: none; }
 main > :not(.dock) { transition: transform 240ms var(--ease-out); }
 
-/* ---------- breakpoints (Spark Chat: >820 sidebar, ≤820 compact) ---------- */
+/* ---------- breakpoints (>820 sidebar, ≤820 compact) ---------- */
 
 .wide-only { display: none; }
 
