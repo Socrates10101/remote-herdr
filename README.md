@@ -1,46 +1,50 @@
 # remote-herdr
 
-herdr のペインで動いている Claude Code セッションを、tailnet 内のスマホや PC のブラウザから
-読んで、プロンプトを送り、承認や選択式の質問に答えるための薄い Web UI です。
+日本語: [README.ja.md](README.ja.md)
 
-- 今動いているセッションに、そのまま接続します（ラッパーで起動し直す必要はありません）。
-- markdown・数式（KaTeX）・コード・画像・PDF を読みやすく表示します。
-- できる操作は、端末の前にいる人が「プロンプトを打つ・↑↓/Enter で選ぶ・Esc を押す」ことだけです。
-  シェル実行・ファイル書き込み・エージェントの起動はできません（その API を持っていません）。
-- アカウントや中継サーバーはありません。認証と通信は Tailscale に任せます。
+A thin web UI for the Claude Code sessions running in your [herdr](https://herdr.dev) panes.
+Open it from a phone or PC browser inside your tailnet to read the conversation, send a
+prompt, and answer permission prompts or multiple-choice questions.
 
-設計と安全上の約束は [ARCHITECTURE.md](ARCHITECTURE.md)、見た目の決まりは [DESIGN.md](DESIGN.md) にあります。
+- Attaches to the sessions that are already running. No wrapper, no restart.
+- Renders markdown, math (KaTeX), code, images and PDFs so long answers are comfortable to read.
+- Can do only what a person at the terminal can do with a prompt, Up/Down + Enter, or Esc.
+  There is no API for running shell commands, writing files, or starting agents.
+- No accounts and no relay server. Authentication and transport are left to Tailscale.
 
-## 必要なもの
+The design and the security promises are in [ARCHITECTURE.md](ARCHITECTURE.md) (Japanese);
+the visual rules are in [DESIGN.md](DESIGN.md).
 
-| もの | 版 | 用途 |
+## Requirements
+
+| What | Version | Used for |
 |---|---|---|
-| [herdr](https://herdr.dev) | 0.9 以上 | セッション一覧・画面の読み取り・入力（ソケット API） |
-| Claude Code | 2.1 系で確認 | 会話記録（`~/.claude/projects`）と確認ダイアログの形式 |
-| Tailscale | `tailscale serve` が使えること | HTTPS 化と、tailnet 内だけへの公開・ユーザー識別 |
-| Go / Node.js / pnpm | 1.26+ / 22+ / 11+ | ビルド時のみ |
+| [herdr](https://herdr.dev) | 0.9 or later | Session list, screen reading, input (socket API) |
+| Claude Code | tested with the 2.1 series | Transcript format (`~/.claude/projects`) and the shape of its permission dialogs |
+| Tailscale | with `tailscale serve` available | HTTPS, tailnet-only exposure, user identity |
+| Go / Node.js / pnpm | 1.26+ / 22+ / 11+ | Build time only |
 
-一人ひとりが自分のマシンで、自分の herdr に対して 1 つ動かす想定です。
+The intended setup is one instance per person, on their own machine, talking to their own herdr.
 
-## 使い始める（約 15 分）
+## Getting started (about 15 minutes)
 
-1. ビルドする
-
-   ```sh
-   git clone <この repo> && cd remote-herdr
-   make build          # UI をビルドして ./remote-herdr に埋め込む
-   ```
-
-2. 自分の公開 URL とログイン名を調べる
+1. Build
 
    ```sh
-   tailscale status --self --json | grep DNSName   # 例: mybox.tail1234.ts.net.
-   tailscale whois $(tailscale ip -4)              # 「User:」の下の Name がログイン名（例: alice@github）
+   git clone https://github.com/Socrates10101/remote-herdr.git && cd remote-herdr
+   make build          # builds the UI and embeds it into ./remote-herdr
    ```
 
-   公開 URL は `https://<DNSName（末尾の . を除く）>:<空いているポート>` です（以下 8450 の例）。
+2. Find your public URL and your Tailscale login name
 
-3. 起動する
+   ```sh
+   tailscale status --self --json | grep DNSName   # e.g. mybox.tail1234.ts.net.
+   tailscale whois $(tailscale ip -4)              # the Name under "User:" is your login (e.g. alice@github)
+   ```
+
+   Your public URL is `https://<DNSName without the trailing dot>:<a free port>`. The examples below use 8450.
+
+3. Start the server
 
    ```sh
    ./remote-herdr \
@@ -48,97 +52,100 @@ herdr のペインで動いている Claude Code セッションを、tailnet �
      -allow-user alice@github
    ```
 
-   起動時のログに待ち受けるソケットのパスが出ます
-   （Linux の既定は `$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock`）。
+   The startup log prints the socket it listens on
+   (on Linux the default is `$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock`).
 
-4. tailnet に公開する（root が必要）
+4. Expose it to your tailnet (needs root)
 
    ```sh
    sudo tailscale serve --bg --https=8450 unix:/run/user/$(id -u)/remote-herdr/remote-herdr.sock
    ```
 
-5. スマホや PC のブラウザで `https://mybox.tail1234.ts.net:8450` を開く
+5. Open `https://mybox.tail1234.ts.net:8450` in a browser on your phone or PC.
 
-### 常駐させる（Linux）
+### Run it as a service (Linux)
 
-[contrib/remote-herdr.service](contrib/remote-herdr.service) の `-origin` と `-allow-user` を書き換えて
-`~/.config/systemd/user/` に置き、次を実行します。
+Edit `-origin` and `-allow-user` in [contrib/remote-herdr.service](contrib/remote-herdr.service),
+copy it to `~/.config/systemd/user/`, then run:
 
 ```sh
 systemctl --user enable --now remote-herdr
-sudo loginctl enable-linger $USER     # ログインしていなくても起動させる場合
+sudo loginctl enable-linger $USER     # if it should start without you being logged in
 ```
 
-更新するときは `make build` のあと `systemctl --user restart remote-herdr` です。
-macOS 向けの launchd 設定はまだ用意していません。
+To update, run `make build` and then `systemctl --user restart remote-herdr`.
+There is no launchd configuration for macOS yet.
 
-## 使い方
+## Usage
 
-- **一覧**: herdr の全セッションが「承認が必要 / 作業中 / そのほか」に分かれて並びます。
-  PC 幅では左のサイドバー、スマホでは最初の画面です。
-- **会話**: Claude の出力と、ツール呼び出し（1 行ずつ、タップで中身）を表示します。
-  下の入力欄から送ったプロンプトは、端末の Claude にそのまま入力されます。
-  作業中は送信ボタンが中断ボタン（Esc）に変わります。
-- **答える**: 権限確認や選択式の質問が出ると、選択肢がボタンで並びます。
-  複数選択は項目を選んでから Submit。自由入力（Type something）だけは端末で答えます。
-- **ファイル**: セッションの作業ディレクトリを読み取り専用で見られます（画像・PDF・md・tex など）。
-  `.` で始まるファイルやディレクトリは表示しません。
-- **スマホ**: ホーム画面に追加すると全画面で使えます。戻る操作（端からのスワイプ）で一覧に戻ります。
+- **List**: every herdr session, grouped into "needs approval / working / other".
+  On wide screens it is the left sidebar; on phones it is the first screen.
+- **Conversation**: Claude's output plus tool calls (one line each, tap to expand).
+  A prompt typed in the composer at the bottom is sent to the Claude in the terminal as is.
+  While the agent is working, the send button becomes an interrupt button (Esc).
+- **Answer**: when a permission prompt or a multiple-choice question appears, the options show up as buttons.
+  For multi-select, pick the items and then Submit. Free-text answers ("Type something") must be given at the terminal.
+- **Files**: browse the session's working directory read-only (images, PDFs, md, tex, ...).
+  Files and directories starting with `.` are not shown.
+- **Phones**: add it to the home screen for a full-screen app. Swipe from the edge to go back to the list.
 
-### 注意
+### Caveats
 
-- 端末で入力の途中にスマホから送ると、入力欄の文字と混ざります。
-- `!` で始まる入力（Claude Code のシェル実行）は既定では送れません（`-allow-shell` で許可できます。
-  許可すると、この UI に入れる端末からこのマシンのコマンドを確認なしで実行できる状態になります）。
-  スラッシュコマンドも既定では送れません（`-allow-slash /compact` のように個別に許可できます）。
+- If you send from the phone while something is half-typed in the terminal, the two inputs get mixed.
+- Input starting with `!` (Claude Code shell mode) is refused by default. `-allow-shell` enables it.
+  With it enabled, any device that can reach this UI can run commands on this machine without a permission prompt.
+  Slash commands are also refused by default; allow them individually, e.g. `-allow-slash /compact`.
 
-## 安全のために
+## Safety model
 
-- 待ち受けは unix ソケット（権限 0600）だけで、外へは `tailscale serve` 経由でしか出ません。
-- `-allow-user` 以外の Tailscale ユーザーは 403 になります。tailnet の ACL でも、
-  このポートに届く端末を自分のものに絞ってください。
-- **Funnel（インターネット公開）では使わないでください。** Tailscale のユーザー識別が付かず、前提が崩れます。
-- 作業ディレクトリがホームのセッションでは、ホーム配下（ドット以外）を閲覧できます。
+- The server listens only on a unix socket (mode 0600) and is reachable from outside only through `tailscale serve`.
+- Any Tailscale user not listed in `-allow-user` gets a 403. Also restrict which devices may reach
+  this port in your tailnet ACL.
+- **Do not expose it with Funnel (public internet).** Funnel requests carry no Tailscale user identity,
+  which breaks the whole model.
+- For a session whose working directory is your home directory, everything under home
+  (except dot-files) becomes browsable.
 
-## うまく動かないとき
+## Troubleshooting
 
-| 症状 | 確認すること |
+| Symptom | Check |
 |---|---|
-| 画面が真っ白 | ブラウザがスクリプトを止めていないか（Brave は Shields の「スクリプトをブロック」をこのサイトだけオフ） |
-| `not allowed`（403） | `-allow-user` のログイン名が `tailscale whois` の User の Name と一致しているか |
-| `unexpected host`（421） | `-origin` がブラウザで開いている URL（ポート込み）と一致しているか |
-| 一覧が空・`herdr unavailable` | `herdr status server` の `socket:` を `-herdr-socket` に指定する |
-| 会話が表示されない | `CLAUDE_CONFIG_DIR` を使っているなら、その下の `projects` を `-projects-dir` に指定する |
-| 選択肢が出ない | Claude Code の画面の形が変わった可能性。端末で答え、画面の内容を issue で共有する |
+| Blank page | The browser is not blocking scripts (in Brave, turn off "Block scripts" in Shields for this site only) |
+| `not allowed` (403) | The login in `-allow-user` matches the Name under User in `tailscale whois` |
+| `unexpected host` (421) | `-origin` matches the URL in the browser, including the port |
+| Empty list or `herdr unavailable` | Pass the `socket:` path from `herdr status server` as `-herdr-socket` |
+| No conversation shown | If you use `CLAUDE_CONFIG_DIR`, pass its `projects` subdirectory as `-projects-dir` |
+| No options shown | Claude Code's screen layout may have changed. Answer at the terminal and share the screen text in an issue |
 
-原因を調べるときは `-access-log` を付けると、リクエストごとの結果が記録されます（プロンプトの本文は記録しません）。
+For debugging, `-access-log` records the outcome of every request (prompt bodies are never logged).
 
-## オプション
+## Options
 
-| フラグ | 既定 | 説明 |
+| Flag | Default | Description |
 |---|---|---|
-| `-origin` | （必須） | ブラウザから見た URL（`https://host:port`） |
-| `-allow-user` | （必須） | 許可する Tailscale ログイン（カンマ区切り） |
-| `-listen` | `unix:$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock` | `unix:/path` か `tcp:127.0.0.1:PORT`（loopback のみ） |
-| `-allow-slash` | なし | リモートから送ってよいスラッシュコマンド（カンマ区切り） |
-| `-allow-shell` | オフ | `!` で始まる入力（Claude Code のシェル実行）を許可する |
-| `-herdr-socket` | `$HERDR_SOCKET_PATH` か `~/.config/herdr/herdr.sock` | herdr の API ソケット |
-| `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects`（未設定なら `~/.claude/projects`） | Claude Code の会話記録 |
-| `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions`（未設定なら `~/.claude/sessions`） | 動いているセッションの一覧。fork したセッションの会話記録を探すのに使う |
-| `-host-name` | hostname | 画面に出すマシン名（将来の複数ホスト対応用） |
-| `-access-log` | オフ | 調査用のアクセスログ |
+| `-origin` | (required) | The URL as seen from the browser (`https://host:port`) |
+| `-allow-user` | (required) | Tailscale logins allowed to use the UI (comma-separated) |
+| `-listen` | `unix:$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock` | `unix:/path` or `tcp:127.0.0.1:PORT` (loopback only) |
+| `-allow-slash` | none | Slash commands that may be sent remotely (comma-separated) |
+| `-allow-shell` | off | Allow input starting with `!` (Claude Code shell mode) |
+| `-herdr-socket` | `$HERDR_SOCKET_PATH` or `~/.config/herdr/herdr.sock` | herdr API socket |
+| `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects` (or `~/.claude/projects`) | Claude Code transcripts |
+| `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions` (or `~/.claude/sessions`) | Registry of running sessions, used to find the transcript of forked sessions |
+| `-host-name` | hostname | Machine name shown in the UI (for future multi-host support) |
+| `-access-log` | off | Access log for debugging |
 
-## 開発
+## Development
 
 ```sh
 make test     # go vet + go test + svelte-check
 make build
 ```
 
-- サーバー: Go 標準ライブラリのみ（`cmd/`, `internal/`）
-- UI: Svelte 5 + Vite + TypeScript、pnpm（`web/`）。ビルド結果はバイナリに埋め込まれます。
-- 作業ルールは [AGENTS.md](AGENTS.md)。安全上の約束を変える変更にはテストを付けてください。
+- Server: Go standard library only (`cmd/`, `internal/`).
+- UI: Svelte 5 + Vite + TypeScript with pnpm (`web/`). The build output is embedded in the binary.
+- UI copy is currently Japanese.
+- Contributor rules are in [AGENTS.md](AGENTS.md). Any change to a security promise needs a test.
 
-## ライセンス
+## License
 
-MIT（[LICENSE](LICENSE)）
+MIT ([LICENSE](LICENSE))
