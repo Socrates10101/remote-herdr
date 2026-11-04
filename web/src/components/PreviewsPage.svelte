@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { api, refKey, type Agent, type Preview, type PreviewApp } from '../lib/api'
   import PreviewRow from './PreviewRow.svelte'
+  import { openPreview } from '../lib/viewer.svelte'
 
   let { agents, onselect }: { agents: Agent[]; onselect: (id: string) => void } = $props()
 
@@ -53,10 +54,10 @@
       {#each apps as a (a.port)}
         <li>
           {#if a.listening}
-            <a class="row preview-row" href={a.url} target="_blank" rel="noopener noreferrer">
+            <button class="row preview-row" onclick={() => openPreview(a.url, `:${a.port}`)}>
               <span class="row-main"><span class="row-title">:{a.port}</span></span>
               <span class="row-size">使用中</span>
-            </a>
+            </button>
           {:else}
             <span class="row preview-row idle">
               <span class="row-main"><span class="row-title">:{a.port}</span></span>

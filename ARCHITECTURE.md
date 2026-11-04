@@ -62,19 +62,24 @@ herdr の CLI ではなくソケット API を使う。CLI は `--` 区切りに
    応答に `Content-Security-Policy: sandbox` を付ける。テキストは UTF-8 かつ 2MB 以下。
 9. **描画**: markdown の生 HTML は無効。最終 HTML は DOMPurify を通す。画像は同一オリジンの
    ファイル API か data:image のみ、リンクは http(s) のみ。
-10. **CSP**: `script-src 'self'`。KaTeX のため `style-src` のみ `'unsafe-inline'`。
+10. **CSP**: `script-src 'self'`。KaTeX のため `style-src` のみ `'unsafe-inline'`。`frame-src` はプレビューの
+    オリジンだけ（無効なら `'none'`）。`frame-ancestors 'none'`（remote-herdr 自体は埋め込ませない）。
 11. **プレビュー**: `-preview-dir` と `-preview-origin` を両方指定したときだけ経路ができる。読むのは
     置き場の 2 階層と `.session`（256 バイト以下の通常ファイル）だけで、ドット始まりとシンボリックリンクは
-    たどらない。プレビューの中身はこのサーバーから配らず、別オリジン（`-preview-origin`。`-origin` と同じものは
-    起動時に拒否）へのリンクにする。同じオリジンで配ると、プレビューのスクリプトがこの API を呼べてしまうため。
-    埋め込み（iframe）もしない。動く画面のポートは loopback に接続できるかを見るだけで、何も送らない。
+    たどらない。プレビューの中身はこのサーバーから配らない。同じオリジンで配ると、プレビューのスクリプトが
+    この API を呼べてしまうため。表示は別オリジン（`-preview-origin` と動く画面のポート）の iframe か新しいタブで、
+    これらが `-origin` と同じになる設定は起動時に拒否する。CSP の `frame-src` は既定で `'none'`、プレビューが
+    有効なときだけそのオリジンに限って開ける。iframe の sandbox はスクリプト・フォーム・ポップアップを許し、
+    remote-herdr 自体の遷移（top navigation）は許さない。埋め込まれたページから API へは、オリジンが違うため
+    `Sec-Fetch-Site` と POST の `Origin` 照合で届かない。動く画面のポートは loopback に接続できるかを見るだけで、何も送らない。
 12. **監査**: プロンプト送信・承認・中断をユーザー名つきでログに出す（本文は出さない）。
     `!` 始まりは `shell` として区別して記録する。
 
 ## プレビュー（任意）
 
 ほかの仕組み（例: preview skill の `preview.sh`）が `<置き場>/<project>/<name>/` に置き、`<origin>/<project>/<name>/` で
-配っているプレビューを、セッションごとに並べてリンクする。remote-herdr は配信も削除もしない。プレビューの寿命は
+配っているプレビューを、セッションごとに並べて remote-herdr の中（iframe）で開く。新しいタブでも開ける。
+remote-herdr は配信も削除もしない。プレビューの寿命は
 セッションと同じと考え、セッションが終わったものは一覧の「終わったセッション・持ち主なし」に畳んで残す
 （掃除は置いた側の仕組みで行う）。
 

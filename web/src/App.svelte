@@ -9,6 +9,8 @@
   import { watchEdgeSwipe } from './lib/swipe'
   import { previewsEnabled, setAllowShell, setHome, setPreviews, shortPath } from './lib/home.svelte'
   import PreviewsPage from './components/PreviewsPage.svelte'
+  import PreviewViewer from './components/PreviewViewer.svelte'
+  import { closePreview, onPopPreview, viewer } from './lib/viewer.svelte'
 
   let agents = $state<Agent[]>([])
   let sizes = $state<Record<string, number>>({})
@@ -73,11 +75,14 @@
       history.pushState({ session: initial }, '', `#${encodeURIComponent(initial)}`)
       selected = initial
     }
-    const onPop = () => show(fromHash())
+    const onPop = () => {
+      if (onPopPreview()) return
+      show(fromHash())
+    }
     window.addEventListener('popstate', onPop)
     const stopSwipe = watchEdgeSwipe(
-      () => selected !== null,
-      () => select(null),
+      () => selected !== null || !!viewer.url,
+      () => (viewer.url ? closePreview() : select(null)),
     )
     api
       .me()
@@ -188,3 +193,5 @@
     <p class="wide-only pick-hint">左の一覧からセッションを選んでください。</p>
   {/if}
 </main>
+
+<PreviewViewer />

@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -71,6 +72,7 @@ type Server struct {
 	originHost string
 	mux        *http.ServeMux
 	mcache     mentionCache
+	csp        string
 }
 
 const (
@@ -81,9 +83,13 @@ const (
 	screenMaxLines = 2000
 )
 
-const appCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-	"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; " +
-	"frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'"
+// appCSP is the app's policy; frameSrc is "'none'" unless previews are
+// enabled, then only the preview origins may be framed.
+func appCSP(frameSrc string) string {
+	return "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; " +
+		"frame-src " + frameSrc + "; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'"
+}
 
 // fileCSP applies to files served from an agent's working directory. The
 // sandbox keeps scripts in SVG or PDF from running with the app's origin.
@@ -128,6 +134,11 @@ func New(cfg Config) (*Server, error) {
 			if p <= 0 || p > 65535 {
 				return nil, fmt.Errorf("invalid preview app port %d", p)
 			}
+			if pu.Scheme+"://"+net.JoinHostPort(pu.Hostname(), strconv.Itoa(p)) == cfg.Origin ||
+				(pu.Hostname() == u.Hostname() && strconv.Itoa(p) == u.Port()) {
+				// A framed app on this origin could call this API.
+				return nil, fmt.Errorf("preview app port %d is the app's own origin", p)
+			}
 		}
 	} else if len(cfg.PreviewAppPorts) > 0 {
 		return nil, errors.New("preview app ports need preview dir and origin")
@@ -135,7 +146,10 @@ func New(cfg Config) (*Server, error) {
 	if cfg.AllowedSlash == nil {
 		cfg.AllowedSlash = map[string]bool{}
 	}
-	s := &Server{cfg: cfg, originHost: u.Host, mux: http.NewServeMux()}
+	s := &Server{cfg: cfg, originHost: u.Host, mux: http.NewServeMux(), csp: appCSP("'none'")}
+	if s.previewsEnabled() {
+		s.csp = appCSP(strings.Join(s.previewFrameOrigins(), " "))
+	}
 	s.routes()
 	return s, nil
 }
@@ -176,7 +190,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w = rec
 	}
 	h := w.Header()
-	h.Set("Content-Security-Policy", appCSP)
+	h.Set("Content-Security-Policy", s.csp)
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("X-Frame-Options", "DENY")

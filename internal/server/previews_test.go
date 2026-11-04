@@ -121,12 +121,13 @@ func TestPreviewConfigRejected(t *testing.T) {
 		return Config{Herdr: &fakeHerdr{}, AllowedUsers: map[string]bool{"a": true}, Origin: testOrigin}
 	}
 	cases := map[string]func(*Config){
-		"dir without origin": func(c *Config) { c.PreviewDir = "/tmp" },
-		"origin without dir": func(c *Config) { c.PreviewOrigin = previewOrigin },
-		"http origin":        func(c *Config) { c.PreviewDir, c.PreviewOrigin = "/tmp", "http://box.tail.ts.net:8460" },
-		"origin with path":   func(c *Config) { c.PreviewDir, c.PreviewOrigin = "/tmp", previewOrigin+"/x" },
-		"same as app origin": func(c *Config) { c.PreviewDir, c.PreviewOrigin = "/tmp", testOrigin },
-		"ports without dir":  func(c *Config) { c.PreviewAppPorts = []int{8461} },
+		"dir without origin":     func(c *Config) { c.PreviewDir = "/tmp" },
+		"origin without dir":     func(c *Config) { c.PreviewOrigin = previewOrigin },
+		"http origin":            func(c *Config) { c.PreviewDir, c.PreviewOrigin = "/tmp", "http://box.tail.ts.net:8460" },
+		"origin with path":       func(c *Config) { c.PreviewDir, c.PreviewOrigin = "/tmp", previewOrigin+"/x" },
+		"same as app origin":     func(c *Config) { c.PreviewDir, c.PreviewOrigin = "/tmp", testOrigin },
+		"ports without dir":      func(c *Config) { c.PreviewAppPorts = []int{8461} },
+		"app port is own origin": func(c *Config) { c.PreviewDir, c.PreviewOrigin, c.PreviewAppPorts = "/tmp", previewOrigin, []int{8450} },
 		"port out of range": func(c *Config) {
 			c.PreviewDir, c.PreviewOrigin, c.PreviewAppPorts = "/tmp", previewOrigin, []int{70000}
 		},
@@ -234,5 +235,19 @@ func TestPreviewApps(t *testing.T) {
 	}
 	if r.Apps[0].URL != "https://box.tail.ts.net:"+strconv.Itoa(used)+"/" {
 		t.Errorf("url = %s", r.Apps[0].URL)
+	}
+}
+
+func TestPreviewFrameCSP(t *testing.T) {
+	s, _ := newTest(t, "idle")
+	csp := do(s, req(http.MethodGet, "/api/me", "")).Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "frame-src 'none';") || !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("default csp = %s", csp)
+	}
+	fx := newPreviewTest(t, 8461)
+	csp = do(fx.s, req(http.MethodGet, "/api/me", "")).Header().Get("Content-Security-Policy")
+	want := "frame-src " + previewOrigin + " https://box.tail.ts.net:8461;"
+	if !strings.Contains(csp, want) || !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("preview csp = %s, want %q", csp, want)
 	}
 }

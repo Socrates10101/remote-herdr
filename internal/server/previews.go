@@ -140,6 +140,18 @@ func (s *Server) resolvePreviews(agents []herdr.Agent) ([]previewItem, error) {
 	return out, nil
 }
 
+// previewFrameOrigins are the only origins the UI may show in an iframe:
+// the preview origin and the app ports on its host. All differ from the
+// app's origin (checked in New), so framed pages cannot call this API.
+func (s *Server) previewFrameOrigins() []string {
+	u, _ := url.Parse(s.cfg.PreviewOrigin)
+	out := []string{s.cfg.PreviewOrigin}
+	for _, p := range s.cfg.PreviewAppPorts {
+		out = append(out, u.Scheme+"://"+net.JoinHostPort(u.Hostname(), strconv.Itoa(p)))
+	}
+	return out
+}
+
 // previewApps reports whether each configured app port has a listener on
 // loopback. It only opens and closes a TCP connection; nothing is sent.
 func (s *Server) previewApps(ctx context.Context) []previewApp {
