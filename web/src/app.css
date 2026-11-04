@@ -345,3 +345,20 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
   .topbar, .dock, .send, main > :not(.dock) { transition: none; }
   .spark.active, .icon-btn.spinning .icon { animation: none; }
 }
+
+/* ---------- previews ---------- */
+
+.preview-row { text-decoration: none; color: var(--text); }
+.preview-row.idle { color: var(--text-3); }
+.row-sub { display: block; font-size: 12px; color: var(--text-3); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preview-row .row-main { display: flex; flex-direction: column; justify-content: center; }
+.preview-row .row-title { line-height: 1.35; }
+.link.quiet { color: var(--text-2); text-decoration: none; font-weight: 500; }
+.link.quiet:hover { color: var(--text); text-decoration: underline; }
+.preview-rest summary { cursor: pointer; list-style-position: inside; }
+.page .conv-group { padding-left: 4px; }
+.side-link { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: var(--r-ctl); font-size: 13.5px; color: var(--text-2); }
+.side-link:hover, .side-link.active { background: var(--surface); color: var(--text); }
+.preview-row { height: 52px; }
+.side-nav { padding: 8px 8px 0; flex: none; }
+.list-previews { margin: 4px 0 0; padding: 10px 8px; font-size: 15px; color: var(--text); }

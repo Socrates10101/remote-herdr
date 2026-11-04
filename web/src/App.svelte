@@ -7,7 +7,8 @@
   import Icon from './components/Icon.svelte'
   import Spark from './components/Spark.svelte'
   import { watchEdgeSwipe } from './lib/swipe'
-  import { setAllowShell, setHome, shortPath } from './lib/home.svelte'
+  import { previewsEnabled, setAllowShell, setHome, setPreviews, shortPath } from './lib/home.svelte'
+  import PreviewsPage from './components/PreviewsPage.svelte'
 
   let agents = $state<Agent[]>([])
   let sizes = $state<Record<string, number>>({})
@@ -19,10 +20,15 @@
 
   const current = $derived(agents.find((a) => refKey(a) === selected) ?? null)
 
-  const tabs: [Tab, string, string][] = [
+  // The all-previews page lives at #previews; session keys always contain "/".
+  const PREVIEWS = 'previews'
+  const onPreviews = $derived(selected === PREVIEWS && previewsEnabled())
+
+  const tabs = $derived<[Tab, string, string][]>([
     ['chat', '会話', 'chat'],
     ['files', 'ファイル', 'folder'],
-  ]
+    ...(previewsEnabled() ? [['previews', 'プレビュー', 'preview'] as [Tab, string, string]] : []),
+  ])
 
   function show(id: string | null) {
     selected = id
@@ -79,6 +85,7 @@
         user = m.user
         setHome(m.home)
         setAllowShell(m.allowShell)
+        setPreviews(m.previews)
       })
       .catch(() => {})
     // First paint does not wait for the event stream.
@@ -115,6 +122,13 @@
     <b>remote-herdr</b>
     <span class="conn" class:down role="status" aria-label={down ? '切断中' : '接続中'}></span>
   </div>
+  {#if previewsEnabled()}
+    <div class="side-nav">
+      <button class="side-link" class:active={onPreviews} onclick={() => select(PREVIEWS)}>
+        <Icon name="preview" size={16} />プレビュー
+      </button>
+    </div>
+  {/if}
   <div class="conv-list">
     <AgentList {agents} {loaded} onselect={select} {selected} compact />
   </div>
@@ -126,7 +140,7 @@
   {/if}
 </aside>
 
-<header class="topbar" class:hidden={chrome.hidden && !!current} class:list-only={!current}>
+<header class="topbar" class:hidden={chrome.hidden && !!current} class:list-only={!current && !onPreviews}>
   {#if current}
     <button class="icon-btn back-button" onclick={() => select(null)} aria-label="セッション一覧へ戻る">
       <Icon name="back" size={20} />
@@ -141,6 +155,12 @@
         </button>
       {/each}
     </div>
+  {:else if onPreviews}
+    <button class="icon-btn back-button" onclick={() => select(null)} aria-label="セッション一覧へ戻る">
+      <Icon name="back" size={20} />
+    </button>
+    <h1>プレビュー</h1>
+    <span class="spacer"></span>
   {:else}
     <span class="brand-mark"><Spark size={16} /></span>
     <h1>remote-herdr</h1>
@@ -151,11 +171,20 @@
 
 <main class:with-session={!!current}>
   {#if current}
-    <Session agent={current} size={sizes[refKey(current)] ?? -1} {tab} />
-  {:else if selected && loaded}
+    <Session agent={current} size={sizes[refKey(current)] ?? -1} {tab} onallpreviews={() => select(PREVIEWS)} />
+  {:else if onPreviews}
+    <PreviewsPage {agents} onselect={select} />
+  {:else if selected && loaded && selected !== PREVIEWS}
     <p class="empty">このペインは閉じられたようです。<button class="link" onclick={() => select(null)}>一覧へ戻る</button></p>
   {:else}
-    <div class="narrow-only list-page-wrap"><AgentList {agents} {loaded} {user} onselect={select} /></div>
+    <div class="narrow-only list-page-wrap">
+      {#if previewsEnabled()}
+        <button class="side-link list-previews" onclick={() => select(PREVIEWS)}>
+          <Icon name="preview" size={16} />プレビュー<span class="spacer"></span><Icon name="chevron" size={14} />
+        </button>
+      {/if}
+      <AgentList {agents} {loaded} {user} onselect={select} />
+    </div>
     <p class="wide-only pick-hint">左の一覧からセッションを選んでください。</p>
   {/if}
 </main>

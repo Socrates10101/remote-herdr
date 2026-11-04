@@ -13,6 +13,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -46,6 +48,19 @@ func splitSet(s string) map[string]bool {
 	return out
 }
 
+func parsePorts(s string) ([]int, error) {
+	var out []int
+	for v := range splitSet(s) {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid port %q", v)
+		}
+		out = append(out, p)
+	}
+	sort.Ints(out)
+	return out, nil
+}
+
 func run() error {
 	home, _ := os.UserHomeDir()
 	listen := flag.String("listen", "unix:"+defaultSocket(), "unix:/path/to.sock or tcp:127.0.0.1:PORT (loopback only)")
@@ -62,20 +77,31 @@ func run() error {
 	}
 	projects := flag.String("projects-dir", filepath.Join(claudeDir, "projects"), "Claude Code projects directory ($CLAUDE_CONFIG_DIR/projects)")
 	sessions := flag.String("sessions-dir", filepath.Join(claudeDir, "sessions"), "Claude Code running-session registry ($CLAUDE_CONFIG_DIR/sessions), used to find forked sessions")
+	previewDir := flag.String("preview-dir", "", "folder of published previews as <project>/<name>/, e.g. ~/previews (enables the preview tab)")
+	previewOrigin := flag.String("preview-origin", "", "origin that serves -preview-dir, e.g. https://host.tailnet.ts.net:8460")
+	previewApps := flag.String("preview-app-ports", "", "comma-separated ports on the preview host used for running apps, e.g. 8461,8462")
 	flag.Parse()
 
+	appPorts, err := parsePorts(*previewApps)
+	if err != nil {
+		return err
+	}
+
 	srv, err := server.New(server.Config{
-		Herdr:        &herdr.Client{SocketPath: *herdrSock},
-		ProjectsDir:  *projects,
-		SessionsDir:  *sessions,
-		AllowedUsers: splitSet(*allowUsers),
-		Origin:       *origin,
-		AllowedSlash: splitSet(*allowSlash),
-		AllowShell:   *allowShell,
-		Static:       web.Dist(),
-		HostName:     *hostName,
-		AccessLog:    *accessLog,
-		Logger:       log.New(os.Stderr, "", log.LstdFlags),
+		Herdr:           &herdr.Client{SocketPath: *herdrSock},
+		ProjectsDir:     *projects,
+		SessionsDir:     *sessions,
+		AllowedUsers:    splitSet(*allowUsers),
+		Origin:          *origin,
+		AllowedSlash:    splitSet(*allowSlash),
+		AllowShell:      *allowShell,
+		Static:          web.Dist(),
+		HostName:        *hostName,
+		AccessLog:       *accessLog,
+		PreviewDir:      *previewDir,
+		PreviewOrigin:   *previewOrigin,
+		PreviewAppPorts: appPorts,
+		Logger:          log.New(os.Stderr, "", log.LstdFlags),
 	})
 	if err != nil {
 		return err

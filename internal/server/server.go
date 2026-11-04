@@ -1,7 +1,7 @@
 // Package server is the HTTP layer of remote-herdr.
 //
 // The API only exposes: list agents, read screen/transcript/files (read-only),
-// submit a prompt, answer an approval dialog, and interrupt. There is no
+// list preview folders (read-only, opt-in), submit a prompt, answer an approval dialog, and interrupt. There is no
 // endpoint that runs commands, writes files or starts agents.
 package server
 
@@ -54,6 +54,15 @@ type Config struct {
 	// HostName identifies this machine in API responses. A future hub that
 	// aggregates several hosts keys agents by (host, pane).
 	HostName string
+	// PreviewDir is the folder that holds published previews as
+	// <project>/<name>/ (e.g. ~/previews). Empty disables the preview API.
+	PreviewDir string
+	// PreviewOrigin is where PreviewDir is served (another origin, e.g.
+	// https://host.tailnet.ts.net:8460). Required with PreviewDir.
+	PreviewOrigin string
+	// PreviewAppPorts are ports on PreviewOrigin's host used for running
+	// apps; the UI shows whether each has a listener.
+	PreviewAppPorts []int
 }
 
 // Server implements http.Handler.
@@ -61,6 +70,7 @@ type Server struct {
 	cfg        Config
 	originHost string
 	mux        *http.ServeMux
+	mcache     mentionCache
 }
 
 const (
@@ -100,6 +110,28 @@ func New(cfg Config) (*Server, error) {
 	if cfg.HostName == "" {
 		cfg.HostName, _ = os.Hostname()
 	}
+	if cfg.PreviewDir != "" || cfg.PreviewOrigin != "" {
+		if cfg.PreviewDir == "" || cfg.PreviewOrigin == "" {
+			return nil, errors.New("preview dir and preview origin must be set together")
+		}
+		pu, err := url.Parse(cfg.PreviewOrigin)
+		if err != nil || pu.Scheme != "https" || pu.Host == "" || (pu.Path != "" && pu.Path != "/") ||
+			pu.RawQuery != "" || pu.Fragment != "" || pu.User != nil {
+			return nil, fmt.Errorf("preview origin must look like https://host[:port], got %q", cfg.PreviewOrigin)
+		}
+		if cfg.PreviewOrigin == cfg.Origin || pu.Host == u.Host {
+			// Same origin would let preview scripts call this API.
+			return nil, errors.New("preview origin must differ from origin")
+		}
+		cfg.PreviewOrigin = strings.TrimSuffix(cfg.PreviewOrigin, "/")
+		for _, p := range cfg.PreviewAppPorts {
+			if p <= 0 || p > 65535 {
+				return nil, fmt.Errorf("invalid preview app port %d", p)
+			}
+		}
+	} else if len(cfg.PreviewAppPorts) > 0 {
+		return nil, errors.New("preview app ports need preview dir and origin")
+	}
 	if cfg.AllowedSlash == nil {
 		cfg.AllowedSlash = map[string]bool{}
 	}
@@ -121,6 +153,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/agents/{pane}/dialog", s.withAgent(s.handleDialog))
 	s.mux.HandleFunc("POST /api/agents/{pane}/choose", s.withAgent(s.handleChoose))
 	s.mux.HandleFunc("POST /api/agents/{pane}/interrupt", s.withAgent(s.handleInterrupt))
+	if s.previewsEnabled() {
+		s.mux.HandleFunc("GET /api/previews", s.handlePreviews)
+		s.mux.HandleFunc("GET /api/agents/{pane}/previews", s.withAgent(s.handleAgentPreviews))
+	}
 	if s.cfg.Static != nil {
 		s.mux.Handle("GET /", http.FileServerFS(s.cfg.Static))
 	}
@@ -245,6 +281,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"host":       s.cfg.HostName,
 		"home":       home,
 		"allowShell": s.cfg.AllowShell,
+		"previews":   s.previewsEnabled(),
 	})
 }
 

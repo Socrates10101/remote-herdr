@@ -20,6 +20,7 @@ tailscale serve ──(unix socket 0600)──▶ remote-herdr（Go, 単一バ�
                                           ├─ herdr ソケット API（agent.list/read/prompt/send_keys）
                                           ├─ ~/.claude/projects/*/<session>.jsonl（読み取りのみ）
                                           ├─ ~/.claude/sessions/<pid>.json（読み取りのみ）
+                                          ├─ プレビューの置き場（任意・読み取りのみ。中身は配らない）
                                           └─ 埋め込み UI（Vite + Svelte のビルド成果物）
 ```
 
@@ -29,6 +30,7 @@ tailscale serve ──(unix socket 0600)──▶ remote-herdr（Go, 単一バ�
 | herdr 連携 | herdr の unix ソケット JSON API（1 リクエスト 1 行） | `internal/herdr` |
 | 会話記録 | Claude Code の JSONL を読み取り専用で正規化 | `internal/transcript` |
 | ファイル閲覧 | エージェントの cwd 配下を読み取り専用で配信 | `internal/files` |
+| プレビュー | 置き場の一覧と持ち主のセッション（任意） | `internal/previews`, `internal/server/previews.go` |
 | UI | Vite + TypeScript + Svelte 5、pnpm | `web/` |
 | 描画 | markdown-it（html:false）+ texmath/KaTeX（trust:false）+ highlight.js + DOMPurify | `web/src/lib/markdown.ts` |
 
@@ -46,8 +48,8 @@ herdr の CLI ではなくソケット API を使う。CLI は `--` 区切りに
 4. **クロスサイト対策**: `Sec-Fetch-Site` が cross-site の API リクエストを拒否。POST は
    `Origin` 完全一致、`X-Remote-Herdr: 1`、`Content-Type: application/json` を必須にする。
    cookie を使わないため、セッション奪取の対象もない。
-5. **API の範囲**: 一覧、画面読み取り、会話記録、ファイル一覧・読み取り、プロンプト送信、
-   承認・拒否、中断のみ。書き込み・実行・起動の API を追加しない。
+5. **API の範囲**: 一覧、画面読み取り、会話記録、ファイル一覧・読み取り、プレビューの一覧（任意）、
+   プロンプト送信、承認・拒否、中断のみ。書き込み・実行・起動・削除の API を追加しない。
 6. **プロンプト**: `!` 始まり（Claude Code のシェル実行）は既定で拒否し、`--allow-shell` を付けたときだけ通す
    （tailnet 内の許可ユーザーとして届く端末が、そのままこのマシンのシェルになる）。`/` 始まりは `--allow-slash` で
    許可したものだけ。改行・タブ以外の制御文字（エスケープシーケンス、bracketed paste）を拒否。
@@ -61,8 +63,30 @@ herdr の CLI ではなくソケット API を使う。CLI は `--` 区切りに
 9. **描画**: markdown の生 HTML は無効。最終 HTML は DOMPurify を通す。画像は同一オリジンの
    ファイル API か data:image のみ、リンクは http(s) のみ。
 10. **CSP**: `script-src 'self'`。KaTeX のため `style-src` のみ `'unsafe-inline'`。
-11. **監査**: プロンプト送信・承認・中断をユーザー名つきでログに出す（本文は出さない）。
+11. **プレビュー**: `-preview-dir` と `-preview-origin` を両方指定したときだけ経路ができる。読むのは
+    置き場の 2 階層と `.session`（256 バイト以下の通常ファイル）だけで、ドット始まりとシンボリックリンクは
+    たどらない。プレビューの中身はこのサーバーから配らず、別オリジン（`-preview-origin`。`-origin` と同じものは
+    起動時に拒否）へのリンクにする。同じオリジンで配ると、プレビューのスクリプトがこの API を呼べてしまうため。
+    埋め込み（iframe）もしない。動く画面のポートは loopback に接続できるかを見るだけで、何も送らない。
+12. **監査**: プロンプト送信・承認・中断をユーザー名つきでログに出す（本文は出さない）。
     `!` 始まりは `shell` として区別して記録する。
+
+## プレビュー（任意）
+
+ほかの仕組み（例: preview skill の `preview.sh`）が `<置き場>/<project>/<name>/` に置き、`<origin>/<project>/<name>/` で
+配っているプレビューを、セッションごとに並べてリンクする。remote-herdr は配信も削除もしない。プレビューの寿命は
+セッションと同じと考え、セッションが終わったものは一覧の「終わったセッション・持ち主なし」に畳んで残す
+（掃除は置いた側の仕組みで行う）。
+
+持ち主のセッションは次の順で決める。
+
+1. 置き場の `.session`（1 行目がセッション ID）。置く側が `$CLAUDE_CODE_SESSION_ID` を書く。
+2. 無ければ、開いているセッションの会話記録で最後にその URL を出したもの。数えるのはアシスタントの本文と、
+   ツールの出力で URL だけが 1 行になっている行（置くスクリプトの出力の形）。ユーザーが貼った URL や、
+   検索結果・読んだ文書の中の URL は数えない。
+3. どちらも無ければ持ち主なし。
+
+`<project>/index.html` がある置き場は、project 全体を 1 つのサイトとして扱う。
 
 ## 既知の制約
 

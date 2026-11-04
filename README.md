@@ -83,6 +83,8 @@ macOS 向けの launchd 設定はまだ用意していません。
   複数選択は項目を選んでから Submit。自由入力（Type something）だけは端末で答えます。
 - **ファイル**: セッションの作業ディレクトリを読み取り専用で見られます（画像・PDF・md・tex など）。
   `.` で始まるファイルやディレクトリは表示しません。
+- **プレビュー**（任意）: `-preview-dir` を指定すると、セッションに「プレビュー」タブと、一覧に
+  「プレビュー」が出ます。セッションが置いた HTML のプレビューを新しいタブで開けます（下の「プレビューと連携する」）。
 - **スマホ**: ホーム画面に追加すると全画面で使えます。戻る操作（端からのスワイプ）で一覧に戻ります。
 
 ### 注意
@@ -91,6 +93,22 @@ macOS 向けの launchd 設定はまだ用意していません。
 - `!` で始まる入力（Claude Code のシェル実行）は既定では送れません（`-allow-shell` で許可できます。
   許可すると、この UI に入れる端末からこのマシンのコマンドを確認なしで実行できる状態になります）。
   スラッシュコマンドも既定では送れません（`-allow-slash /compact` のように個別に許可できます）。
+
+## プレビューと連携する（任意）
+
+エージェントが作った HTML（図・画面の案）を、別の静的サーバーが `<置き場>/<project>/<name>/` から
+`https://<host>:<port>/<project>/<name>/` で配っているなら、それをセッションごとに一覧できます。
+
+```sh
+./remote-herdr ... \
+  -preview-dir ~/previews \
+  -preview-origin https://mybox.tail1234.ts.net:8460 \
+  -preview-app-ports 8461,8462     # 動く画面用のポート（任意。使用中かどうかを表示）
+```
+
+- 置く側が `<name>/.session` にセッション ID（`$CLAUDE_CODE_SESSION_ID`）を 1 行書くと、確実に紐づきます。
+  書かなくても、会話の中でその URL を出したセッションに紐づきます。
+- remote-herdr はプレビューを配りも消しもしません。リンクは別オリジンを新しいタブで開きます。
 
 ## 安全のために
 
@@ -126,6 +144,9 @@ macOS 向けの launchd 設定はまだ用意していません。
 | `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects`（未設定なら `~/.claude/projects`） | Claude Code の会話記録 |
 | `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions`（未設定なら `~/.claude/sessions`） | 動いているセッションの一覧。fork したセッションの会話記録を探すのに使う |
 | `-host-name` | hostname | 画面に出すマシン名（将来の複数ホスト対応用） |
+| `-preview-dir` | なし | プレビューの置き場（`<project>/<name>/`）。指定するとプレビュー機能が有効になる |
+| `-preview-origin` | なし | 置き場を配っている URL（`https://host:port`）。`-preview-dir` と一緒に必須 |
+| `-preview-app-ports` | なし | 動く画面用のポート（カンマ区切り）。使用中か空きかを表示する |
 | `-access-log` | オフ | 調査用のアクセスログ |
 
 ## 開発

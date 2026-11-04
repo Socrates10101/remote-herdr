@@ -21,7 +21,7 @@ Not an agent platform: it adds no accounts, relays, or new execution paths. It a
 - Content is mostly long assistant answers in Japanese and English with markdown, tables, LaTeX math, code, tool calls and occasional images; also project files (`.md`, `.tex`, images, PDFs).
 
 ## Capabilities and Constraints
-- Read: agent list with status (blocked / working / idle / done), conversation transcript, terminal screen text, project files (read-only, no dotfiles).
+- Read: agent list with status (blocked / working / idle / done), conversation transcript, terminal screen text, project files (read-only, no dotfiles), and (opt-in) the HTML previews each session published, opened as links to the separate preview server.
 - Act: send a prompt; answer a selection dialog (permission prompts, AskUserQuestion single/multi select) by moving the cursor and pressing Enter; cancel or interrupt (Esc).
 - Never: write files, start agents, or add execution paths of its own. Prompts starting with `!` (Claude Code shell mode) are refused unless the owner starts the server with `-allow-shell`.
 - UI copy is Japanese.
