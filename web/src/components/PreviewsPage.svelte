@@ -57,7 +57,7 @@
 </script>
 
 {#if open}
-  <PreviewViewer url={open.url} title={open.title} withDock={false} onback={() => (open = null)} />
+  <PreviewViewer url={open.url} title={open.title} onback={() => (open = null)} />
 {:else}
 <div class="page">
   {#if error}<p class="error">{error}</p>{/if}

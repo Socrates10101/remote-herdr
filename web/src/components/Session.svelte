@@ -20,13 +20,6 @@
 
   // The approval sheet never hides: it is the one thing that needs an answer.
   const blocked = $derived(agent.status === 'blocked')
-
-  // The preview frame fills the space above the dock, whose height changes
-  // with the composer's text and the approval sheet.
-  let dockHeight = $state(0)
-  $effect(() => {
-    document.documentElement.style.setProperty('--dock-h', `${dockHeight}px`)
-  })
 </script>
 
 {#if tab === 'chat'}
@@ -37,7 +30,7 @@
   <Files {agent} />
 {/if}
 
-<footer class="dock" class:hidden={chrome.dockHidden && !blocked && tab !== 'previews'} bind:clientHeight={dockHeight}>
+<footer class="dock" class:over={tab === 'previews'} class:hidden={chrome.dockHidden && !blocked && tab !== 'previews'}>
   {#if blocked}
     <ApprovalBar {agent} />
   {:else}

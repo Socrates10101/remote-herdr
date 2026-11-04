@@ -10,7 +10,7 @@
   import { previewsEnabled, setAllowShell, setHome, setPreviews, shortPath } from './lib/home.svelte'
   import PreviewsPage from './components/PreviewsPage.svelte'
   import PreviewMenu from './components/PreviewMenu.svelte'
-  import { loadSessionPreviews, resetSessionPreviews, sessionPreviews } from './lib/viewer.svelte'
+  import { loadSessionPreviews, resetSessionPreviews, selectedPreview, sessionPreviews } from './lib/viewer.svelte'
   import type { Preview } from './lib/api'
 
   let agents = $state<Agent[]>([])
@@ -186,7 +186,12 @@
   {/if}
 </aside>
 
-<header class="topbar" class:hidden={chrome.hidden && !!current} class:list-only={!current && !onPreviews}>
+<header
+  class="topbar"
+  class:over={!!current && tab === 'previews' && !!selectedPreview()}
+  class:hidden={chrome.hidden && !!current}
+  class:list-only={!current && !onPreviews}
+>
   {#if current}
     <button class="icon-btn back-button" onclick={() => select(null)} aria-label="セッション一覧へ戻る">
       <Icon name="back" size={20} />
@@ -215,6 +220,18 @@
           </button>
         {/if}
       {/each}
+      {#if tab === 'previews' && selectedPreview()}
+        <a
+          class="icon-btn tab-ext"
+          href={selectedPreview()?.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="新しいタブで開く"
+          title={selectedPreview()?.name || selectedPreview()?.project}
+        >
+          <Icon name="external" size={16} />
+        </a>
+      {/if}
       {#if sessionPreviews.menu}
         <PreviewMenu
           entries={sessionPreviews.entries}

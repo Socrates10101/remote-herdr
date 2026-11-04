@@ -4,9 +4,9 @@
   let {
     url,
     title,
-    withDock = true,
+    overlay = false,
     onback,
-  }: { url: string; title: string; withDock?: boolean; onback?: () => void } = $props()
+  }: { url: string; title: string; overlay?: boolean; onback?: () => void } = $props()
 
   // The frame runs on the preview origin, never on remote-herdr's (enforced
   // by the server's CSP frame-src). The sandbox lets the page run scripts
@@ -15,7 +15,10 @@
     'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads'
 </script>
 
-<div class="pframe" class:with-dock={withDock}>
+<!-- overlay: fills the session area; the top bar and the composer float over
+     it translucently (the page's controls live in the top bar). -->
+<div class="pframe" class:overlay>
+  {#if !overlay}
   <div class="pframe-bar">
     {#if onback}
       <button class="icon-btn" onclick={onback} aria-label="一覧へ戻る"><Icon name="back" size={18} /></button>
@@ -25,6 +28,7 @@
       <Icon name="external" size={16} />
     </a>
   </div>
+  {/if}
   {#key url}
     <iframe src={url} {title} {sandbox} referrerpolicy="no-referrer"></iframe>
   {/key}

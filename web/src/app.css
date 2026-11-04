@@ -373,13 +373,24 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
   top: calc(var(--topbar) + env(safe-area-inset-top)); bottom: 0;
   display: flex; flex-direction: column; background: var(--bg);
 }
-.pframe.with-dock { bottom: var(--dock-h, 0px); }
+/* Session preview: full height; top bar and composer float over it. */
+.pframe.overlay { top: 0; }
+.topbar.over {
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom-color: color-mix(in srgb, var(--line) 60%, transparent);
+}
+.dock.over { background: none; pointer-events: none; }
+.dock.over > * { pointer-events: auto; }
+.dock.over .composer, .dock.over .approval {
+  background: color-mix(in srgb, var(--panel) 66%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+}
+.tab-ext { align-self: center; }
 .pframe-bar { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); flex: none; }
 .pframe-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pframe iframe { flex: 1; width: 100%; border: 0; background: #fff; }
 @media (min-width: 821px) { .pframe { left: var(--sidebar); } }
-/* The dock sits over the frame's bottom edge without the fade. */
-.pframe.with-dock ~ .dock { background: var(--bg); }
 
 /* Picker under the preview tab */
 .tabs { position: relative; }
