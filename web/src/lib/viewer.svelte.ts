@@ -1,27 +1,33 @@
-// The in-app preview viewer. Opening pushes a history entry so the browser's
-// back (and the viewer's own back button) closes it without leaving the page
-// underneath.
+// What the session's preview tab shows: the session's preview folders and
+// the one selected. Reset when another session is opened.
 
-export const viewer = $state({ url: '', title: '' })
+import { api, refKey, type Agent, type Preview } from './api'
 
-export function openPreview(url: string, title: string) {
-  if (!url.startsWith('https://')) return
-  viewer.url = url
-  viewer.title = title
-  history.pushState({ ...(history.state ?? {}), preview: url }, '', location.hash || '#')
+export const sessionPreviews = $state({
+  key: '', // refKey of the session the entries belong to
+  entries: [] as Preview[],
+  loaded: false,
+  url: '', // selected preview
+  menu: false, // the picker under the tab is open
+})
+
+export function resetSessionPreviews(key: string) {
+  sessionPreviews.key = key
+  sessionPreviews.entries = []
+  sessionPreviews.loaded = false
+  sessionPreviews.url = ''
+  sessionPreviews.menu = false
 }
 
-export function closePreview() {
-  if (!viewer.url) return
-  if (history.state?.preview) history.back() // popstate clears the viewer
-  else viewer.url = ''
+export async function loadSessionPreviews(a: Agent): Promise<void> {
+  const key = refKey(a)
+  const r = await api.agentPreviews(a)
+  if (sessionPreviews.key !== key) return
+  sessionPreviews.entries = r.entries
+  sessionPreviews.loaded = true
+  if (sessionPreviews.url && !r.entries.some((p) => p.url === sessionPreviews.url)) sessionPreviews.url = ''
 }
 
-// onPopPreview handles popstate; true when it only closed the viewer.
-export function onPopPreview(): boolean {
-  if (viewer.url && !history.state?.preview) {
-    viewer.url = ''
-    return true
-  }
-  return false
+export function selectedPreview(): Preview | undefined {
+  return sessionPreviews.entries.find((p) => p.url === sessionPreviews.url)
 }

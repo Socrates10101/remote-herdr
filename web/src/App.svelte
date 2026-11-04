@@ -9,8 +9,9 @@
   import { watchEdgeSwipe } from './lib/swipe'
   import { previewsEnabled, setAllowShell, setHome, setPreviews, shortPath } from './lib/home.svelte'
   import PreviewsPage from './components/PreviewsPage.svelte'
-  import PreviewViewer from './components/PreviewViewer.svelte'
-  import { closePreview, onPopPreview, viewer } from './lib/viewer.svelte'
+  import PreviewMenu from './components/PreviewMenu.svelte'
+  import { loadSessionPreviews, resetSessionPreviews, sessionPreviews } from './lib/viewer.svelte'
+  import type { Preview } from './lib/api'
 
   let agents = $state<Agent[]>([])
   let sizes = $state<Record<string, number>>({})
@@ -35,6 +36,7 @@
   function show(id: string | null) {
     selected = id
     tab = 'chat'
+    resetSessionPreviews(id ?? '')
     showChrome()
     window.scrollTo({ top: 0 })
   }
@@ -63,9 +65,50 @@
 
   function setTab(t: Tab) {
     tab = t
+    sessionPreviews.menu = false
     showChrome()
     window.scrollTo({ top: 0 })
   }
+
+  // The preview tab opens the only preview directly; with several it drops
+  // a picker below the tab and the pick is shown in the session area.
+  async function previewTab() {
+    if (current && !sessionPreviews.loaded) await loadSessionPreviews(current).catch(() => {})
+    const list = sessionPreviews.entries
+    if (list.length > 1) {
+      sessionPreviews.menu = !sessionPreviews.menu
+      return
+    }
+    if (list.length === 1) sessionPreviews.url = list[0].url
+    setTab('previews')
+  }
+
+  function pickPreview(p: Preview) {
+    sessionPreviews.url = p.url
+    setTab('previews')
+  }
+
+  // Opening from the all-previews page: jump to the owning session's tab
+  // when it is open in herdr; otherwise the page shows it in place.
+  function openFromAll(p: Preview): boolean {
+    const o = p.owner
+    const key = o?.host && o.paneId ? `${o.host}/${o.paneId}` : ''
+    if (!key || !agents.some((a) => refKey(a) === key)) return false
+    select(key)
+    sessionPreviews.url = p.url
+    tab = 'previews'
+    if (current) loadSessionPreviews(current).catch(() => {})
+    return true
+  }
+
+  // Keep the session's preview list fresh: on open and whenever its
+  // transcript grows (a new preview URL may have been posted).
+  $effect(() => {
+    const a = current
+    void (a ? sizes[refKey(a)] : 0)
+    if (!a || !previewsEnabled()) return
+    loadSessionPreviews(a).catch(() => {})
+  })
 
   onMount(() => {
     // A deep link still gets a list entry underneath it to go back to.
@@ -74,15 +117,13 @@
       history.replaceState(null, '', '#')
       history.pushState({ session: initial }, '', `#${encodeURIComponent(initial)}`)
       selected = initial
+      resetSessionPreviews(initial)
     }
-    const onPop = () => {
-      if (onPopPreview()) return
-      show(fromHash())
-    }
+    const onPop = () => show(fromHash())
     window.addEventListener('popstate', onPop)
     const stopSwipe = watchEdgeSwipe(
-      () => selected !== null || !!viewer.url,
-      () => (viewer.url ? closePreview() : select(null)),
+      () => selected !== null,
+      () => select(null),
     )
     api
       .me()
@@ -155,10 +196,34 @@
     <span class="spacer"></span>
     <div class="tabs" role="tablist" aria-label="表示の切り替え">
       {#each tabs as [id, label, icon] (id)}
-        <button role="tab" aria-selected={tab === id} class:on={tab === id} onclick={() => setTab(id)}>
-          <Icon name={icon} size={15} />{label}
-        </button>
+        {#if id === 'previews'}
+          <button
+            role="tab"
+            class="pmenu-anchor"
+            aria-selected={tab === id}
+            aria-haspopup={sessionPreviews.entries.length > 1 ? 'menu' : undefined}
+            aria-expanded={sessionPreviews.entries.length > 1 ? sessionPreviews.menu : undefined}
+            class:on={tab === id}
+            onclick={previewTab}
+          >
+            <Icon name={icon} size={15} />{label}
+            {#if sessionPreviews.entries.length > 0}<span class="tab-count">{sessionPreviews.entries.length}</span>{/if}
+          </button>
+        {:else}
+          <button role="tab" aria-selected={tab === id} class:on={tab === id} onclick={() => setTab(id)}>
+            <Icon name={icon} size={15} />{label}
+          </button>
+        {/if}
       {/each}
+      {#if sessionPreviews.menu}
+        <PreviewMenu
+          entries={sessionPreviews.entries}
+          current={tab === 'previews' ? sessionPreviews.url : ''}
+          onpick={pickPreview}
+          onall={() => select(PREVIEWS)}
+          onclose={() => (sessionPreviews.menu = false)}
+        />
+      {/if}
     </div>
   {:else if onPreviews}
     <button class="icon-btn back-button" onclick={() => select(null)} aria-label="セッション一覧へ戻る">
@@ -178,7 +243,7 @@
   {#if current}
     <Session agent={current} size={sizes[refKey(current)] ?? -1} {tab} onallpreviews={() => select(PREVIEWS)} />
   {:else if onPreviews}
-    <PreviewsPage {agents} onselect={select} />
+    <PreviewsPage {agents} onselect={select} onopen={openFromAll} />
   {:else if selected && loaded && selected !== PREVIEWS}
     <p class="empty">このペインは閉じられたようです。<button class="link" onclick={() => select(null)}>一覧へ戻る</button></p>
   {:else}
@@ -194,4 +259,3 @@
   {/if}
 </main>
 
-<PreviewViewer />

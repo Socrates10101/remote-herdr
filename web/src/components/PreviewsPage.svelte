@@ -2,9 +2,20 @@
   import { onMount } from 'svelte'
   import { api, refKey, type Agent, type Preview, type PreviewApp } from '../lib/api'
   import PreviewRow from './PreviewRow.svelte'
-  import { openPreview } from '../lib/viewer.svelte'
+  import PreviewViewer from './PreviewViewer.svelte'
 
-  let { agents, onselect }: { agents: Agent[]; onselect: (id: string) => void } = $props()
+  let {
+    agents,
+    onselect,
+    onopen,
+  }: { agents: Agent[]; onselect: (id: string) => void; onopen: (p: Preview) => boolean } = $props()
+
+  // A preview whose session is not open in herdr is shown here in place.
+  let open = $state<{ url: string; title: string } | null>(null)
+
+  function openRow(p: Preview) {
+    if (!onopen(p)) open = { url: p.url, title: p.name || p.project }
+  }
 
   let entries = $state<Preview[]>([])
   let apps = $state<PreviewApp[]>([])
@@ -45,6 +56,9 @@
   })
 </script>
 
+{#if open}
+  <PreviewViewer url={open.url} title={open.title} withDock={false} onback={() => (open = null)} />
+{:else}
 <div class="page">
   {#if error}<p class="error">{error}</p>{/if}
 
@@ -54,7 +68,7 @@
       {#each apps as a (a.port)}
         <li>
           {#if a.listening}
-            <button class="row preview-row" onclick={() => openPreview(a.url, `:${a.port}`)}>
+            <button class="row preview-row" onclick={() => (open = { url: a.url, title: `:${a.port}` })}>
               <span class="row-main"><span class="row-title">:{a.port}</span></span>
               <span class="row-size">使用中</span>
             </button>
@@ -77,7 +91,7 @@
     <p class="conv-group"><button class="link quiet" onclick={() => onselect(g.key)}>{g.title}</button></p>
     <ul class="rows">
       {#each g.items as p (p.project + '/' + p.name)}
-        <PreviewRow {p} />
+        <PreviewRow {p} onopen={openRow} />
       {/each}
     </ul>
   {/each}
@@ -87,9 +101,10 @@
       <summary class="conv-group">終わったセッション・持ち主なし（{groups.rest.length}）</summary>
       <ul class="rows">
         {#each groups.rest as p (p.project + '/' + p.name)}
-          <PreviewRow {p} />
+          <PreviewRow {p} onopen={openRow} />
         {/each}
       </ul>
     </details>
   {/if}
 </div>
+{/if}

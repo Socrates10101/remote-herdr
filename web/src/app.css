@@ -366,8 +366,38 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
 .side-nav { padding: 8px 8px 0; flex: none; }
 .list-previews { margin: 4px 0 0; padding: 10px 8px; font-size: 15px; color: var(--text); }
 
-/* In-app preview viewer: covers the app; the frame is another origin. */
-.pv { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--bg); }
-.pv-bar { display: flex; align-items: center; gap: 8px; height: calc(var(--topbar) + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 12px 0; border-bottom: 1px solid var(--line); flex: none; }
-.pv-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-frame { flex: 1; width: 100%; border: 0; background: #fff; padding-bottom: env(safe-area-inset-bottom); }
+/* Preview shown in the session area: below the top bar, beside the
+   sidebar, above the dock. The frame is another origin. */
+.pframe {
+  position: fixed; z-index: 5; left: 0; right: 0;
+  top: calc(var(--topbar) + env(safe-area-inset-top)); bottom: 0;
+  display: flex; flex-direction: column; background: var(--bg);
+}
+.pframe.with-dock { bottom: var(--dock-h, 0px); }
+.pframe-bar { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); flex: none; }
+.pframe-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pframe iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+@media (min-width: 821px) { .pframe { left: var(--sidebar); } }
+/* The dock sits over the frame's bottom edge without the fade. */
+.pframe.with-dock ~ .dock { background: var(--bg); }
+
+/* Picker under the preview tab */
+.tabs { position: relative; }
+.tab-count { font-size: 11px; min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); text-align: center; font-variant-numeric: tabular-nums; }
+.pmenu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  width: min(360px, calc(100vw - 16px)); max-height: 60vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-float);
+  box-shadow: var(--shadow); padding: 6px;
+  transform-origin: top right; animation: pmenu-in 160ms var(--ease-out);
+}
+@keyframes pmenu-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } }
+.pmenu-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-ctl); text-align: left; }
+.pmenu-item:hover { background: var(--surface); }
+.pmenu-item.on { background: var(--accent-soft); }
+.pmenu-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pmenu-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+.pmenu-sub { font-size: 12px; color: var(--text-3); line-height: 1.3; }
+.pmenu-ago { font-size: 12px; color: var(--text-3); flex: none; font-variant-numeric: tabular-nums; }
+.pmenu-all { width: 100%; text-align: left; padding: 8px 10px; margin-top: 4px; border-top: 1px solid var(--line); font-size: 13px; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .pmenu { animation: none; } }
