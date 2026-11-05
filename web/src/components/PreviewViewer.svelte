@@ -13,9 +13,15 @@
   let {
     url,
     title,
+    version = '',
     overlay = false,
     onback,
-  }: { url: string; title: string; overlay?: boolean; onback?: () => void } = $props()
+  }: { url: string; title: string; version?: string; overlay?: boolean; onback?: () => void } = $props()
+
+  // The folder's modified time goes into the frame URL: an updated preview
+  // (same URL, overwritten in place) reloads by itself, and no stale copy
+  // from the browser cache is reused. The preview server ignores the query.
+  const src = $derived(version ? `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(version)}` : url)
 
   // The frame runs on the preview origin, never on remote-herdr's (enforced
   // by the server's CSP frame-src). The sandbox lets the page run scripts
@@ -79,7 +85,7 @@
       <span class="pedge-handle"></span>
     </button>
   {/if}
-  {#key url}
-    <iframe bind:this={frame} src={url} {title} {sandbox} referrerpolicy="no-referrer"></iframe>
+  {#key src}
+    <iframe bind:this={frame} {src} {title} {sandbox} referrerpolicy="no-referrer"></iframe>
   {/key}
 </div>

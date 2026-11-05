@@ -43,5 +43,8 @@ export async function loadSessionPreviews(a: Agent): Promise<void> {
 
 export function selectedPreview(): Preview | undefined {
   const u = sessionPreviews.url
-  return sessionPreviews.entries.find((p) => p.url === u) ?? (sessionPreviews.adhoc?.url === u ? sessionPreviews.adhoc : undefined)
+  const own = sessionPreviews.entries.find((p) => p.url === u)
+  if (own || sessionPreviews.adhoc?.url !== u) return own
+  // Prefer the fresh copy from the full list (its modified time moves on update).
+  return allPreviews.entries.find((p) => p.url === u) ?? sessionPreviews.adhoc
 }

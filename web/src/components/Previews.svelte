@@ -8,7 +8,7 @@
 </script>
 
 {#if current}
-  <PreviewViewer url={current.url} title={current.name || current.project} overlay />
+  <PreviewViewer url={current.url} title={current.name || current.project} version={current.modified} overlay />
 {:else if sessionPreviews.loaded}
   <div class="page">
     <p class="note">このセッションのプレビューはまだありません。</p>

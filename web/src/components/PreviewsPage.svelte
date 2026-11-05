@@ -11,10 +11,10 @@
   }: { agents: Agent[]; onselect: (id: string) => void; onopen: (p: Preview) => boolean } = $props()
 
   // A preview whose session is not open in herdr is shown here in place.
-  let open = $state<{ url: string; title: string } | null>(null)
+  let open = $state<{ url: string; title: string; version?: string } | null>(null)
 
   function openRow(p: Preview) {
-    if (!onopen(p)) open = { url: p.url, title: p.name || p.project }
+    if (!onopen(p)) open = { url: p.url, title: p.name || p.project, version: p.modified }
   }
 
   let entries = $state<Preview[]>([])
@@ -57,7 +57,7 @@
 </script>
 
 {#if open}
-  <PreviewViewer url={open.url} title={open.title} onback={() => (open = null)} />
+  <PreviewViewer url={open.url} title={open.title} version={open.version} onback={() => (open = null)} />
 {:else}
 <div class="page">
   {#if error}<p class="error">{error}</p>{/if}
