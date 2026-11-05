@@ -10,7 +10,14 @@
   import { previewsEnabled, setAllowShell, setHome, setPreviews, shortPath } from './lib/home.svelte'
   import PreviewsPage from './components/PreviewsPage.svelte'
   import PreviewMenu from './components/PreviewMenu.svelte'
-  import { loadSessionPreviews, resetSessionPreviews, selectedPreview, sessionPreviews } from './lib/viewer.svelte'
+  import {
+    allPreviews,
+    loadAllPreviews,
+    loadSessionPreviews,
+    resetSessionPreviews,
+    selectedPreview,
+    sessionPreviews,
+  } from './lib/viewer.svelte'
   import type { Preview } from './lib/api'
 
   let agents = $state<Agent[]>([])
@@ -87,6 +94,51 @@
     sessionPreviews.url = p.url
     setTab('previews')
   }
+
+  // From the sidebar: a preview of another open session switches to that
+  // session (so the composer talks to the session that made it); one of an
+  // ended session is shown in this session's frame.
+  function pickAny(p: Preview) {
+    if (current && sessionPreviews.entries.some((e) => e.url === p.url)) return pickPreview(p)
+    if (openFromAll(p)) return
+    sessionPreviews.adhoc = p
+    pickPreview(p)
+  }
+
+  const previewing = $derived(!!current && tab === 'previews')
+
+  // Sidebar groups while previewing: this session, other open sessions, the rest.
+  const sideGroups = $derived.by(() => {
+    if (!previewing || !current) return []
+    const here = refKey(current)
+    const live = new Set(agents.map((a) => refKey(a)))
+    const groups = new Map<string, { key: string; label: string; items: Preview[] }>()
+    const rest: Preview[] = []
+    const mine = sessionPreviews.entries
+    for (const p of allPreviews.entries) {
+      const o = p.owner
+      const key = o?.host && o.paneId ? `${o.host}/${o.paneId}` : ''
+      if (key === here || mine.some((m) => m.url === p.url)) continue
+      if (!key || !live.has(key)) {
+        rest.push(p)
+        continue
+      }
+      const g = groups.get(key) ?? { key, label: o?.title || key, items: [] }
+      g.items.push(p)
+      groups.set(key, g)
+    }
+    return [
+      ...(mine.length ? [{ key: here, label: 'このセッション', items: mine }] : []),
+      ...groups.values(),
+      ...(rest.length ? [{ key: '', label: '終わったセッション・持ち主なし', items: rest }] : []),
+    ]
+  })
+
+  $effect(() => {
+    if (!previewing) return
+    void (current ? sizes[refKey(current)] : 0)
+    loadAllPreviews().catch(() => {})
+  })
 
   // Opening from the all-previews page: jump to the owning session's tab
   // when it is open in herdr; otherwise the page shows it in place.
@@ -176,24 +228,36 @@
     </div>
   {/if}
   <div class="conv-list">
-    {#if current && tab === 'previews' && sessionPreviews.entries.length > 0}
-      <p class="conv-group">このセッションのプレビュー</p>
-      <ul class="convs">
-        {#each sessionPreviews.entries as p (p.url)}
-          <li>
-            <button
-              class="conv side-preview"
-              class:active={p.url === sessionPreviews.url}
-              aria-current={p.url === sessionPreviews.url ? 'page' : undefined}
-              onclick={() => pickPreview(p)}
-            >
-              <span class="conv-lead"><Icon name="preview" size={14} /></span>
-              <span class="conv-main"><span class="t">{p.name || p.project}</span></span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+    {#each sideGroups as g (g.key + g.label)}
+      {#snippet rows(items: Preview[])}
+        <ul class="convs">
+          {#each items as p (p.url)}
+            <li>
+              <button
+                class="conv side-preview"
+                class:active={p.url === sessionPreviews.url}
+                aria-current={p.url === sessionPreviews.url ? 'page' : undefined}
+                title={p.project + '/' + p.name}
+                onclick={() => pickAny(p)}
+              >
+                <span class="conv-lead"><Icon name="preview" size={14} /></span>
+                <span class="conv-main"><span class="t">{p.name || p.project}</span></span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/snippet}
+      {#if g.key === ''}
+        <details class="side-rest">
+          <summary class="conv-group">{g.label}（{g.items.length}）</summary>
+          {@render rows(g.items)}
+        </details>
+      {:else}
+        <p class="conv-group">{g.label}</p>
+        {@render rows(g.items)}
+      {/if}
+    {/each}
+    {#if sideGroups.length > 0}<p class="conv-group side-sep">セッション</p>{/if}
     <AgentList {agents} {loaded} onselect={select} {selected} compact />
   </div>
   {#if user}

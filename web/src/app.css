@@ -391,6 +391,8 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
 .topbar.over.hidden { transform: translateY(-100%); }
 .dock.over.hidden { transform: translateY(calc(100% + 8px)); }
 .side-preview .conv-lead { color: var(--text-3); }
+.side-rest summary { cursor: pointer; list-style-position: inside; }
+.side-sep { border-top: 1px solid var(--line); margin-top: 10px; }
 .side-preview.active .conv-lead { color: var(--accent); }
 .pframe-bar { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); flex: none; }
 .pframe-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
