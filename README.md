@@ -87,6 +87,10 @@ There is no launchd configuration for macOS yet.
   For multi-select, pick the items and then Submit. Free-text answers ("Type something") must be given at the terminal.
 - **Files**: browse the session's working directory read-only (images, PDFs, md, tex, ...).
   Files and directories starting with `.` are not shown.
+- **Previews** (optional): with `-preview-dir`, each session gets a "Previews" tab and the list gets a "Previews" page.
+  The tab opens the session's only preview directly, or lets you pick one when there are several, and shows it
+  inside the session view (the top bar and composer float over it translucently, so you can keep giving instructions;
+  it can also be opened in a new tab). See "Linking previews" below.
 - **Phones**: add it to the home screen for a full-screen app. Swipe from the edge to go back to the list.
 
 ### Caveats
@@ -95,6 +99,30 @@ There is no launchd configuration for macOS yet.
 - Input starting with `!` (Claude Code shell mode) is refused by default. `-allow-shell` enables it.
   With it enabled, any device that can reach this UI can run commands on this machine without a permission prompt.
   Slash commands are also refused by default; allow them individually, e.g. `-allow-slash /compact`.
+
+## Linking previews (optional)
+
+If a separate static server publishes the HTML an agent produces (diagrams, UI drafts) from
+`<dir>/<project>/<name>/` at `https://<host>:<port>/<project>/<name>/`, remote-herdr can list those
+previews per session and show them.
+
+```sh
+./remote-herdr ... \
+  -preview-dir ~/previews \
+  -preview-origin https://mybox.tail1234.ts.net:8460 \
+  -preview-app-ports 8461,8462     # ports used for running apps (optional; shows whether each is in use)
+```
+
+- If the publisher writes the session id (`$CLAUDE_CODE_SESSION_ID`) as one line to `<name>/.session`,
+  the preview is linked to that session reliably. Without it, a preview is linked to the open session
+  that last posted its URL.
+- remote-herdr neither serves nor deletes previews. It embeds the page from the other origin, and the
+  embedded page cannot operate remote-herdr.
+- While a preview is shown, the top bar and composer hide after a short idle; touch the top or bottom edge
+  to bring them back. To hide and show them as the page scrolls, the static server must add a script to
+  its HTML that reports the scroll position to the parent
+  (`parent.postMessage({type: 'remote-herdr:scroll', y, max}, '*')`).
+- If the static server sends headers that forbid embedding (such as `X-Frame-Options`), open the preview in a new tab.
 
 ## Safety model
 
@@ -132,6 +160,9 @@ For debugging, `-access-log` records the outcome of every request (prompt bodies
 | `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects` (or `~/.claude/projects`) | Claude Code transcripts |
 | `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions` (or `~/.claude/sessions`) | Registry of running sessions, used to find the transcript of forked sessions |
 | `-host-name` | hostname | Machine name shown in the UI (for future multi-host support) |
+| `-preview-dir` | none | Folder of published previews (`<project>/<name>/`). Enables the preview features |
+| `-preview-origin` | none | URL that serves `-preview-dir` (`https://host:port`). Required with `-preview-dir` |
+| `-preview-app-ports` | none | Ports used for running apps (comma-separated). The UI shows whether each is in use |
 | `-access-log` | off | Access log for debugging |
 
 ## Development

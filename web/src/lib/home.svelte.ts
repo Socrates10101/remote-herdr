@@ -1,8 +1,9 @@
 // Server facts from /api/me: the home directory, so paths can be shown as
-// "~/…" on any OS, and whether "!" shell prompts are allowed.
+// "~/…" on any OS, whether "!" shell prompts are allowed, and whether the
+// preview tab is enabled (-preview-dir).
 // Reactive: views rendered before /api/me answers update when it does.
 
-const home = $state({ dir: '', allowShell: false })
+const home = $state({ dir: '', allowShell: false, previews: false })
 
 export function setHome(dir: string) {
   home.dir = dir.replace(/\/+$/, '')
@@ -10,6 +11,14 @@ export function setHome(dir: string) {
 
 export function setAllowShell(v: boolean) {
   home.allowShell = v
+}
+
+export function setPreviews(v: boolean) {
+  home.previews = v
+}
+
+export function previewsEnabled(): boolean {
+  return home.previews
 }
 
 export function shellAllowed(): boolean {

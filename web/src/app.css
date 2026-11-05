@@ -345,3 +345,81 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
   .topbar, .dock, .send, main > :not(.dock) { transition: none; }
   .spark.active, .icon-btn.spinning .icon { animation: none; }
 }
+
+/* ---------- previews ---------- */
+
+.preview-item { position: relative; }
+.preview-row { text-decoration: none; color: var(--text); }
+.preview-item .preview-row { padding-right: 44px; }
+.preview-ext { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--text-3); }
+.preview-row.idle { color: var(--text-3); }
+.row-sub { display: block; font-size: 12px; color: var(--text-3); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preview-row .row-main { display: flex; flex-direction: column; justify-content: center; }
+.preview-row .row-title { line-height: 1.35; }
+.link.quiet { color: var(--text-2); text-decoration: none; font-weight: 500; }
+.link.quiet:hover { color: var(--text); text-decoration: underline; }
+.preview-rest summary { cursor: pointer; list-style-position: inside; }
+.page .conv-group { padding-left: 4px; }
+.side-link { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: var(--r-ctl); font-size: 13.5px; color: var(--text-2); }
+.side-link:hover, .side-link.active { background: var(--surface); color: var(--text); }
+.preview-row { height: 52px; }
+.side-nav { padding: 8px 8px 0; flex: none; }
+.list-previews { margin: 4px 0 0; padding: 10px 8px; font-size: 15px; color: var(--text); }
+
+/* Preview shown in the session area: below the top bar, beside the
+   sidebar, above the dock. The frame is another origin. */
+.pframe {
+  position: fixed; z-index: 5; left: 0; right: 0;
+  top: calc(var(--topbar) + env(safe-area-inset-top)); bottom: 0;
+  display: flex; flex-direction: column; background: var(--bg);
+}
+/* Session preview: full height; top bar and composer float over it. */
+.pframe.overlay { top: 0; }
+.topbar.over {
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom-color: color-mix(in srgb, var(--line) 60%, transparent);
+}
+.dock.over { background: none; pointer-events: none; }
+.dock.over > * { pointer-events: auto; }
+.dock.over .composer, .dock.over .approval {
+  background: color-mix(in srgb, var(--panel) 66%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+}
+.tab-ext { align-self: center; }
+/* While previewing, scrolling the page hides both bars on every width. */
+.topbar.over.hidden { transform: translateY(-100%); }
+.dock.over.hidden { transform: translateY(calc(100% + 8px)); }
+.side-preview .conv-lead { color: var(--text-3); }
+.pedge { position: absolute; left: 0; right: 0; z-index: 6; background: transparent; }
+.pedge.top { top: 0; height: 14px; }
+.pedge.bottom { bottom: 0; height: calc(22px + env(safe-area-inset-bottom)); display: flex; justify-content: center; padding-top: 8px; }
+.pedge-handle { width: 44px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 35%, transparent); }
+.side-rest summary { cursor: pointer; list-style-position: inside; }
+.side-sep { border-top: 1px solid var(--line); margin-top: 10px; }
+.side-preview.active .conv-lead { color: var(--accent); }
+.pframe-bar { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); flex: none; }
+.pframe-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pframe iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+@media (min-width: 821px) { .pframe { left: var(--sidebar); } }
+
+/* Picker under the preview tab */
+.tabs { position: relative; }
+.tab-count { font-size: 11px; min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); text-align: center; font-variant-numeric: tabular-nums; }
+.pmenu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  width: min(360px, calc(100vw - 16px)); max-height: 60vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-float);
+  box-shadow: var(--shadow); padding: 6px;
+  transform-origin: top right; animation: pmenu-in 160ms var(--ease-out);
+}
+@keyframes pmenu-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } }
+.pmenu-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-ctl); text-align: left; }
+.pmenu-item:hover { background: var(--surface); }
+.pmenu-item.on { background: var(--accent-soft); }
+.pmenu-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pmenu-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+.pmenu-sub { font-size: 12px; color: var(--text-3); line-height: 1.3; }
+.pmenu-ago { font-size: 12px; color: var(--text-3); flex: none; font-variant-numeric: tabular-nums; }
+.pmenu-all { width: 100%; text-align: left; padding: 8px 10px; margin-top: 4px; border-top: 1px solid var(--line); font-size: 13px; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .pmenu { animation: none; } }

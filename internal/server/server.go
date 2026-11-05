@@ -1,7 +1,7 @@
 // Package server is the HTTP layer of remote-herdr.
 //
 // The API only exposes: list agents, read screen/transcript/files (read-only),
-// submit a prompt, answer an approval dialog, and interrupt. There is no
+// list preview folders (read-only, opt-in), submit a prompt, answer an approval dialog, and interrupt. There is no
 // endpoint that runs commands, writes files or starts agents.
 package server
 
@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -54,6 +55,15 @@ type Config struct {
 	// HostName identifies this machine in API responses. A future hub that
 	// aggregates several hosts keys agents by (host, pane).
 	HostName string
+	// PreviewDir is the folder that holds published previews as
+	// <project>/<name>/ (e.g. ~/previews). Empty disables the preview API.
+	PreviewDir string
+	// PreviewOrigin is where PreviewDir is served (another origin, e.g.
+	// https://host.tailnet.ts.net:8460). Required with PreviewDir.
+	PreviewOrigin string
+	// PreviewAppPorts are ports on PreviewOrigin's host used for running
+	// apps; the UI shows whether each has a listener.
+	PreviewAppPorts []int
 }
 
 // Server implements http.Handler.
@@ -61,6 +71,8 @@ type Server struct {
 	cfg        Config
 	originHost string
 	mux        *http.ServeMux
+	mcache     mentionCache
+	csp        string
 }
 
 const (
@@ -71,9 +83,13 @@ const (
 	screenMaxLines = 2000
 )
 
-const appCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-	"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; " +
-	"frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'"
+// appCSP is the app's policy; frameSrc is "'none'" unless previews are
+// enabled, then only the preview origins may be framed.
+func appCSP(frameSrc string) string {
+	return "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; " +
+		"frame-src " + frameSrc + "; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'"
+}
 
 // fileCSP applies to files served from an agent's working directory. The
 // sandbox keeps scripts in SVG or PDF from running with the app's origin.
@@ -100,10 +116,40 @@ func New(cfg Config) (*Server, error) {
 	if cfg.HostName == "" {
 		cfg.HostName, _ = os.Hostname()
 	}
+	if cfg.PreviewDir != "" || cfg.PreviewOrigin != "" {
+		if cfg.PreviewDir == "" || cfg.PreviewOrigin == "" {
+			return nil, errors.New("preview dir and preview origin must be set together")
+		}
+		pu, err := url.Parse(cfg.PreviewOrigin)
+		if err != nil || pu.Scheme != "https" || pu.Host == "" || (pu.Path != "" && pu.Path != "/") ||
+			pu.RawQuery != "" || pu.Fragment != "" || pu.User != nil {
+			return nil, fmt.Errorf("preview origin must look like https://host[:port], got %q", cfg.PreviewOrigin)
+		}
+		if cfg.PreviewOrigin == cfg.Origin || pu.Host == u.Host {
+			// Same origin would let preview scripts call this API.
+			return nil, errors.New("preview origin must differ from origin")
+		}
+		cfg.PreviewOrigin = strings.TrimSuffix(cfg.PreviewOrigin, "/")
+		for _, p := range cfg.PreviewAppPorts {
+			if p <= 0 || p > 65535 {
+				return nil, fmt.Errorf("invalid preview app port %d", p)
+			}
+			if pu.Scheme+"://"+net.JoinHostPort(pu.Hostname(), strconv.Itoa(p)) == cfg.Origin ||
+				(pu.Hostname() == u.Hostname() && strconv.Itoa(p) == u.Port()) {
+				// A framed app on this origin could call this API.
+				return nil, fmt.Errorf("preview app port %d is the app's own origin", p)
+			}
+		}
+	} else if len(cfg.PreviewAppPorts) > 0 {
+		return nil, errors.New("preview app ports need preview dir and origin")
+	}
 	if cfg.AllowedSlash == nil {
 		cfg.AllowedSlash = map[string]bool{}
 	}
-	s := &Server{cfg: cfg, originHost: u.Host, mux: http.NewServeMux()}
+	s := &Server{cfg: cfg, originHost: u.Host, mux: http.NewServeMux(), csp: appCSP("'none'")}
+	if s.previewsEnabled() {
+		s.csp = appCSP(strings.Join(s.previewFrameOrigins(), " "))
+	}
 	s.routes()
 	return s, nil
 }
@@ -121,6 +167,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/agents/{pane}/dialog", s.withAgent(s.handleDialog))
 	s.mux.HandleFunc("POST /api/agents/{pane}/choose", s.withAgent(s.handleChoose))
 	s.mux.HandleFunc("POST /api/agents/{pane}/interrupt", s.withAgent(s.handleInterrupt))
+	if s.previewsEnabled() {
+		s.mux.HandleFunc("GET /api/previews", s.handlePreviews)
+		s.mux.HandleFunc("GET /api/agents/{pane}/previews", s.withAgent(s.handleAgentPreviews))
+	}
 	if s.cfg.Static != nil {
 		s.mux.Handle("GET /", http.FileServerFS(s.cfg.Static))
 	}
@@ -140,7 +190,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w = rec
 	}
 	h := w.Header()
-	h.Set("Content-Security-Policy", appCSP)
+	h.Set("Content-Security-Policy", s.csp)
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("X-Frame-Options", "DENY")
@@ -245,6 +295,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"host":       s.cfg.HostName,
 		"home":       home,
 		"allowShell": s.cfg.AllowShell,
+		"previews":   s.previewsEnabled(),
 	})
 }
 
