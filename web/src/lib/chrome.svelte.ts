@@ -78,18 +78,51 @@ export function followFrameScroll(y: number, max: number) {
   const delta = y - frameY
   frameY = y
   if (y < 48 || (max > 0 && y > max - 24)) {
-    showChrome()
+    revealChrome()
   } else if (delta > FRAME_STEP) {
     chrome.hidden = true
     chrome.dockHidden = true
   } else if (delta < -FRAME_STEP) {
-    showChrome()
+    revealChrome()
   }
 }
 
 export function resetFrameScroll() {
   frameY = 0
   showChrome()
+}
+
+// While a preview is shown the bars are rarely needed: they hide after a
+// short idle, unless the user is typing, pointing at them, or has the
+// picker open. Showing them again (edge strip, scroll up) re-arms it.
+const IDLE_MS = 2500
+let idleTimer: ReturnType<typeof setTimeout> | undefined
+
+function holdChrome(): boolean {
+  const active = document.activeElement
+  if (active && active !== document.body && active.closest('.dock, .topbar, .pmenu')) return true
+  if (document.querySelector('.pmenu')) return true
+  return !!document.querySelector('.topbar:hover, .dock:hover')
+}
+
+export function armIdleHide() {
+  clearTimeout(idleTimer)
+  idleTimer = setTimeout(() => {
+    if (holdChrome()) return armIdleHide()
+    chrome.hidden = true
+    chrome.dockHidden = true
+  }, IDLE_MS)
+}
+
+export function stopIdleHide() {
+  clearTimeout(idleTimer)
+  idleTimer = undefined
+}
+
+// revealChrome shows the bars and starts the idle countdown again.
+export function revealChrome() {
+  showChrome()
+  if (idleTimer !== undefined) armIdleHide()
 }
 
 export function showChrome() {

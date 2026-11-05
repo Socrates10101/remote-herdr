@@ -391,6 +391,10 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
 .topbar.over.hidden { transform: translateY(-100%); }
 .dock.over.hidden { transform: translateY(calc(100% + 8px)); }
 .side-preview .conv-lead { color: var(--text-3); }
+.pedge { position: absolute; left: 0; right: 0; z-index: 6; background: transparent; }
+.pedge.top { top: 0; height: 14px; }
+.pedge.bottom { bottom: 0; height: calc(22px + env(safe-area-inset-bottom)); display: flex; justify-content: center; padding-top: 8px; }
+.pedge-handle { width: 44px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 35%, transparent); }
 .side-rest summary { cursor: pointer; list-style-position: inside; }
 .side-sep { border-top: 1px solid var(--line); margin-top: 10px; }
 .side-preview.active .conv-lead { color: var(--accent); }

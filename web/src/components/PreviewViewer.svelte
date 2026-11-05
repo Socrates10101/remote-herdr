@@ -1,6 +1,14 @@
 <script lang="ts">
   import Icon from './Icon.svelte'
-  import { followFrameScroll, resetFrameScroll } from '../lib/chrome.svelte'
+  import {
+    armIdleHide,
+    chrome,
+    followFrameScroll,
+    resetFrameScroll,
+    revealChrome,
+    showChrome,
+    stopIdleHide,
+  } from '../lib/chrome.svelte'
 
   let {
     url,
@@ -34,7 +42,15 @@
   $effect(() => {
     void url
     resetFrameScroll()
+    if (!overlay) return
+    armIdleHide()
+    return () => {
+      stopIdleHide()
+      showChrome()
+    }
   })
+
+  const hidden = $derived(overlay && chrome.hidden && chrome.dockHidden)
 
   const sandbox =
     'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads'
@@ -55,6 +71,13 @@
       <Icon name="external" size={16} />
     </a>
   </div>
+  {/if}
+  {#if hidden}
+    <!-- Edge strips bring the hidden bars back (hover on PC, tap on phones). -->
+    <button class="pedge top" aria-label="バーを表示" onpointerenter={revealChrome} onclick={revealChrome}></button>
+    <button class="pedge bottom" aria-label="入力欄を表示" onpointerenter={revealChrome} onclick={revealChrome}>
+      <span class="pedge-handle"></span>
+    </button>
   {/if}
   {#key url}
     <iframe bind:this={frame} src={url} {title} {sandbox} referrerpolicy="no-referrer"></iframe>
