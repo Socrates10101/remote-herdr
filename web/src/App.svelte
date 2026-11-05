@@ -176,6 +176,24 @@
     </div>
   {/if}
   <div class="conv-list">
+    {#if current && tab === 'previews' && sessionPreviews.entries.length > 0}
+      <p class="conv-group">このセッションのプレビュー</p>
+      <ul class="convs">
+        {#each sessionPreviews.entries as p (p.url)}
+          <li>
+            <button
+              class="conv side-preview"
+              class:active={p.url === sessionPreviews.url}
+              aria-current={p.url === sessionPreviews.url ? 'page' : undefined}
+              onclick={() => pickPreview(p)}
+            >
+              <span class="conv-lead"><Icon name="preview" size={14} /></span>
+              <span class="conv-main"><span class="t">{p.name || p.project}</span></span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
     <AgentList {agents} {loaded} onselect={select} {selected} compact />
   </div>
   {#if user}

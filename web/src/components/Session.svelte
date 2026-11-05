@@ -30,7 +30,7 @@
   <Files {agent} />
 {/if}
 
-<footer class="dock" class:over={tab === 'previews'} class:hidden={chrome.dockHidden && !blocked && tab !== 'previews'}>
+<footer class="dock" class:over={tab === 'previews'} class:hidden={chrome.dockHidden && !blocked}>
   {#if blocked}
     <ApprovalBar {agent} />
   {:else}

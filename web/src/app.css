@@ -387,6 +387,11 @@ main > :not(.dock) { transition: transform 240ms var(--ease-out); }
   -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
 }
 .tab-ext { align-self: center; }
+/* While previewing, scrolling the page hides both bars on every width. */
+.topbar.over.hidden { transform: translateY(-100%); }
+.dock.over.hidden { transform: translateY(calc(100% + 8px)); }
+.side-preview .conv-lead { color: var(--text-3); }
+.side-preview.active .conv-lead { color: var(--accent); }
 .pframe-bar { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); flex: none; }
 .pframe-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pframe iframe { flex: 1; width: 100%; border: 0; background: #fff; }

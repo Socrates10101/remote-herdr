@@ -68,6 +68,30 @@ export function watchScroll(): () => void {
   }
 }
 
+// Scroll reports from a framed preview (see PreviewViewer). Down hides the
+// top bar and the composer together; up, the top, or the bottom brings
+// them back.
+const FRAME_STEP = 6
+let frameY = 0
+
+export function followFrameScroll(y: number, max: number) {
+  const delta = y - frameY
+  frameY = y
+  if (y < 48 || (max > 0 && y > max - 24)) {
+    showChrome()
+  } else if (delta > FRAME_STEP) {
+    chrome.hidden = true
+    chrome.dockHidden = true
+  } else if (delta < -FRAME_STEP) {
+    showChrome()
+  }
+}
+
+export function resetFrameScroll() {
+  frameY = 0
+  showChrome()
+}
+
 export function showChrome() {
   chrome.hidden = false
   chrome.dockHidden = false
