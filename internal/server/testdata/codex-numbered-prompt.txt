@@ -1,0 +1,40 @@
+
+  >_ OpenAI Codex (v0.166.0)
+     /tmp/rh-codex-demo
+
+
+› 1. my numbered prompt
+  outside the sandbox)
+
+
+• I’ll run the command and request approval if the sandbox blocks it.
+
+• Running echo hi > hello.txt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: The read-only sandbox blocked writing hello.txt. Allow running the command outside the sandbox?
+
+  $ echo hi > hello.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `echo hi > hello.txt` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel

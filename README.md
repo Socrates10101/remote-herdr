@@ -2,7 +2,7 @@
 
 日本語: [README.ja.md](README.ja.md)
 
-A thin web UI for the Claude Code sessions running in your [herdr](https://herdr.dev) panes.
+A thin web UI for the Claude Code and Codex (Codex CLI) sessions running in your [herdr](https://herdr.dev) panes.
 Open it from a phone or PC browser inside your tailnet to read the conversation, send a
 prompt, and answer permission prompts or multiple-choice questions.
 
@@ -21,6 +21,7 @@ the visual rules are in [DESIGN.md](DESIGN.md).
 |---|---|---|
 | [herdr](https://herdr.dev) | 0.9 or later | Session list, screen reading, input (socket API) |
 | Claude Code | tested with the 2.1 series | Transcript format (`~/.claude/projects`) and the shape of its permission dialogs |
+| Codex CLI | tested with 0.166 | Transcript format (`~/.codex/sessions`) and the shape of its approval and question screens. Needs herdr's Codex integration (`herdr integration install codex`) |
 | Tailscale | with `tailscale serve` available | HTTPS, tailnet-only exposure, user identity |
 | Go / Node.js / pnpm | 1.26+ / 22+ / 11+ | Build time only |
 
@@ -80,11 +81,14 @@ There is no launchd configuration for macOS yet.
 
 - **List**: every herdr session, grouped into "needs approval / working / other".
   On wide screens it is the left sidebar; on phones it is the first screen.
-- **Conversation**: Claude's output plus tool calls (one line each, tap to expand).
-  A prompt typed in the composer at the bottom is sent to the Claude in the terminal as is.
+- **Conversation**: the agent's (Claude's or Codex's) output plus tool calls (one line each, tap to expand).
+  For Codex, commands with their output, file changes and web searches show up as tool calls.
+  A prompt typed in the composer at the bottom is sent to the agent in the terminal as is.
   While the agent is working, the send button becomes an interrupt button (Esc).
 - **Answer**: when a permission prompt or a multiple-choice question appears, the options show up as buttons.
   For multi-select, pick the items and then Submit. Free-text answers ("Type something") must be given at the terminal.
+  With Codex this covers command and file-edit approvals, the folder trust prompt, and questions (request_user_input).
+  Cancel (Esc) means "No, and tell Codex what to do differently" there, which stops the current turn.
 - **Files**: browse the session's working directory read-only (images, PDFs, md, tex, ...).
   Files and directories starting with `.` are not shown.
 - **Previews** (optional): with `-preview-dir`, each session gets a "Previews" tab and the list gets a "Previews" page.
@@ -96,7 +100,7 @@ There is no launchd configuration for macOS yet.
 ### Caveats
 
 - If you send from the phone while something is half-typed in the terminal, the two inputs get mixed.
-- Input starting with `!` (Claude Code shell mode) is refused by default. `-allow-shell` enables it.
+- Input starting with `!` (the shell mode of Claude Code and Codex) is refused by default. `-allow-shell` enables it.
   With it enabled, any device that can reach this UI can run commands on this machine without a permission prompt.
   Slash commands are also refused by default; allow them individually, e.g. `-allow-slash /compact`.
 
@@ -113,7 +117,7 @@ previews per session and show them.
   -preview-app-ports 8461,8462     # ports used for running apps (optional; shows whether each is in use)
 ```
 
-- If the publisher writes the session id (`$CLAUDE_CODE_SESSION_ID`) as one line to `<name>/.session`,
+- If the publisher writes the session id (`$CLAUDE_CODE_SESSION_ID` for Claude Code, `$CODEX_THREAD_ID` for Codex) as one line to `<name>/.session`,
   the preview is linked to that session reliably. Without it, a preview is linked to the open session
   that last posted its URL.
 - remote-herdr neither serves nor deletes previews. It embeds the page from the other origin, and the
@@ -143,7 +147,8 @@ previews per session and show them.
 | `unexpected host` (421) | `-origin` matches the URL in the browser, including the port |
 | Empty list or `herdr unavailable` | Pass the `socket:` path from `herdr status server` as `-herdr-socket` |
 | No conversation shown | If you use `CLAUDE_CONFIG_DIR`, pass its `projects` subdirectory as `-projects-dir` |
-| No options shown | Claude Code's screen layout may have changed. Answer at the terminal and share the screen text in an issue |
+| No Codex conversation shown | Check that herdr's Codex integration is installed (`herdr integration status`). If you use `CODEX_HOME`, pass its `sessions` subdirectory as `-codex-sessions-dir`. A Codex session has no id until its first prompt, so it stays empty until then |
+| No options shown | Claude Code's or Codex's screen layout may have changed. Answer at the terminal and share the screen text in an issue |
 
 For debugging, `-access-log` records the outcome of every request (prompt bodies are never logged).
 
@@ -155,10 +160,11 @@ For debugging, `-access-log` records the outcome of every request (prompt bodies
 | `-allow-user` | (required) | Tailscale logins allowed to use the UI (comma-separated) |
 | `-listen` | `unix:$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock` | `unix:/path` or `tcp:127.0.0.1:PORT` (loopback only) |
 | `-allow-slash` | none | Slash commands that may be sent remotely (comma-separated) |
-| `-allow-shell` | off | Allow input starting with `!` (Claude Code shell mode) |
+| `-allow-shell` | off | Allow input starting with `!` (the shell mode of Claude Code and Codex) |
 | `-herdr-socket` | `$HERDR_SOCKET_PATH` or `~/.config/herdr/herdr.sock` | herdr API socket |
 | `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects` (or `~/.claude/projects`) | Claude Code transcripts |
 | `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions` (or `~/.claude/sessions`) | Registry of running sessions, used to find the transcript of forked sessions |
+| `-codex-sessions-dir` | `$CODEX_HOME/sessions` (or `~/.codex/sessions`) | Codex transcripts. Must be an absolute path; empty turns Codex transcripts off |
 | `-host-name` | hostname | Machine name shown in the UI (for future multi-host support) |
 | `-preview-dir` | none | Folder of published previews (`<project>/<name>/`). Enables the preview features |
 | `-preview-origin` | none | URL that serves `-preview-dir` (`https://host:port`). Required with `-preview-dir` |

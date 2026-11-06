@@ -3,8 +3,11 @@
   import { renderMarkdown } from '../lib/markdown'
   import Icon from './Icon.svelte'
   import Spark from './Spark.svelte'
+  import { agentName } from '../lib/agents'
 
   let { agent, size }: { agent: Agent; size: number } = $props()
+
+  const name = $derived(agentName(agent.agent))
 
   let messages = $state<Message[]>([])
   let error = $state('')
@@ -122,7 +125,7 @@
     }
   }
 
-  // An agent entry opens a new turn (and shows the Claude header) when the
+  // An agent entry opens a new turn (and shows the agent's name) when the
   // previous entry was the owner's own message.
   function opensTurn(i: number): boolean {
     if (i === 0) return true
@@ -197,7 +200,7 @@
         <span class="ai-mark">{#if opensTurn(it.idx)}<Spark size={14} />{/if}</span>
         <div>
           {#if opensTurn(it.idx)}
-            <div class="msg-head"><b>Claude</b><span>{time(messages[it.idx].timestamp)}</span></div>
+            <div class="msg-head"><b>{name}</b><span>{time(messages[it.idx].timestamp)}</span></div>
           {/if}
           <details class="tool tool-group" class:failed={g.failed > 0}>
             <summary>
@@ -232,7 +235,7 @@
         <span class="ai-mark">{#if opensTurn(idx)}<Spark size={14} />{/if}</span>
         <div>
           {#if opensTurn(idx)}
-            <div class="msg-head"><b>Claude</b><span>{time(m.timestamp)}</span></div>
+            <div class="msg-head"><b>{name}</b><span>{time(m.timestamp)}</span></div>
           {/if}
           {#each m.blocks as b, i (i)}
             {@render block(b)}

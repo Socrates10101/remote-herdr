@@ -1,8 +1,11 @@
 <script lang="ts">
   import { api, type Agent, type Dialog } from '../lib/api'
   import Icon from './Icon.svelte'
+  import { agentName } from '../lib/agents'
 
   let { agent }: { agent: Agent } = $props()
+
+  const name = $derived(agentName(agent.agent))
 
   let dialog = $state<Dialog | null>(null)
   let busy = $state(false)
@@ -61,7 +64,7 @@
 </script>
 
 <div class="approval" role="alertdialog" aria-labelledby="approval-title">
-  <p id="approval-title" class="approval-title">Claude が答えを待っています</p>
+  <p id="approval-title" class="approval-title">{name} が答えを待っています</p>
   {#if dialog && dialog.context.length > 0}
     <pre class="approval-context">{dialog.context.map((l) => l.replace(/^←\s*/, '').replace(/\s*→$/, '')).join('\n')}</pre>
   {/if}

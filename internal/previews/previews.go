@@ -21,7 +21,8 @@ import (
 )
 
 // MarkerName is the file a publisher writes into a preview folder. Its first
-// line is the Claude Code session id that published the folder.
+// line is the session id that published the folder: Claude Code's
+// $CLAUDE_CODE_SESSION_ID or Codex's $CODEX_THREAD_ID.
 const MarkerName = ".session"
 
 const (
