@@ -36,13 +36,17 @@ type Herdr interface {
 
 // Config configures the server.
 type Config struct {
-	Herdr        Herdr
-	ProjectsDir  string          // ~/.claude/projects
-	SessionsDir  string          // ~/.claude/sessions; empty disables background session lookup
-	AllowedUsers map[string]bool // Tailscale logins allowed to use the UI
-	Origin       string          // public origin, e.g. https://host.tailnet.ts.net:8450
-	AllowedSlash map[string]bool // slash commands allowed in prompts
-	// AllowShell lets prompts start with "!" (Claude Code's shell mode).
+	Herdr       Herdr
+	ProjectsDir string // ~/.claude/projects
+	SessionsDir string // ~/.claude/sessions; empty disables background session lookup
+	// CodexSessionsDir is where Codex keeps its session logs
+	// (~/.codex/sessions). Empty disables Codex transcripts.
+	CodexSessionsDir string
+	AllowedUsers     map[string]bool // Tailscale logins allowed to use the UI
+	Origin           string          // public origin, e.g. https://host.tailnet.ts.net:8450
+	AllowedSlash     map[string]bool // slash commands allowed in prompts
+	// AllowShell lets prompts start with "!", the shell mode of both Claude
+	// Code and Codex.
 	// Off by default: anyone who can reach the UI as an allowed user would
 	// otherwise get a shell on this machine.
 	AllowShell   bool
@@ -65,6 +69,12 @@ type Config struct {
 	// apps; the UI shows whether each has a listener.
 	PreviewAppPorts []int
 }
+
+// Agent kinds as herdr reports them.
+const (
+	agentClaude = "claude"
+	agentCodex  = "codex"
+)
 
 // Server implements http.Handler.
 type Server struct {
@@ -275,7 +285,7 @@ func (s *Server) listAgents(ctx context.Context) ([]herdr.Agent, error) {
 	for i := range agents {
 		agents[i].Host = s.cfg.HostName
 		a := &agents[i]
-		if a.SessionID != "" || a.Agent != "claude" || s.cfg.SessionsDir == "" {
+		if a.SessionID != "" || a.Agent != agentClaude || s.cfg.SessionsDir == "" {
 			continue
 		}
 		// Forked and background sessions run outside the pane, so herdr
@@ -330,12 +340,33 @@ func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request, a herdr.Ag
 	writeJSON(w, map[string]any{"text": text, "status": a.Status})
 }
 
-func (s *Server) handleTranscript(w http.ResponseWriter, r *http.Request, a herdr.Agent) {
+// transcriptOf locates the log of the agent's session and the loader for its
+// format: Claude Code logs under ProjectsDir, Codex logs under
+// CodexSessionsDir. Panes without a session id, other agents and missing logs
+// give transcript.ErrNotFound.
+func (s *Server) transcriptOf(a herdr.Agent) (string, transcript.Loader, error) {
 	if a.SessionID == "" {
-		writeJSON(w, map[string]any{"messages": []any{}, "size": -1})
-		return
+		return "", nil, transcript.ErrNotFound
 	}
-	path, err := transcript.Locate(s.cfg.ProjectsDir, a.SessionID)
+	switch a.Agent {
+	case agentCodex:
+		if s.cfg.CodexSessionsDir == "" {
+			return "", nil, transcript.ErrNotFound
+		}
+		p, err := transcript.LocateCodex(s.cfg.CodexSessionsDir, a.SessionID)
+		return p, transcript.LoadCodex, err
+	case agentClaude, "":
+		if s.cfg.ProjectsDir == "" {
+			return "", nil, transcript.ErrNotFound
+		}
+		p, err := transcript.Locate(s.cfg.ProjectsDir, a.SessionID)
+		return p, transcript.Load, err
+	}
+	return "", nil, transcript.ErrNotFound
+}
+
+func (s *Server) handleTranscript(w http.ResponseWriter, r *http.Request, a herdr.Agent) {
+	path, load, err := s.transcriptOf(a)
 	if err != nil {
 		if errors.Is(err, transcript.ErrNotFound) {
 			writeJSON(w, map[string]any{"messages": []any{}, "size": -1})
@@ -348,7 +379,7 @@ func (s *Server) handleTranscript(w http.ResponseWriter, r *http.Request, a herd
 	if limit <= 0 || limit > transcriptMax {
 		limit = transcriptMax
 	}
-	msgs, size, err := transcript.Load(path, limit)
+	msgs, size, err := load(path, limit)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, "cannot read transcript")
 		return
@@ -456,7 +487,7 @@ func (s *Server) handleDecision(w http.ResponseWriter, r *http.Request, a herdr.
 			s.herdrError(w, err)
 			return
 		}
-		if !LooksLikeApprovalDialog(screen) {
+		if !looksLikeApprovalFor(a.Agent, screen) {
 			httpError(w, http.StatusConflict, "unrecognised dialog; answer it in the terminal")
 			return
 		}
@@ -486,7 +517,7 @@ func (s *Server) handleDialog(w http.ResponseWriter, r *http.Request, a herdr.Ag
 		s.herdrError(w, err)
 		return
 	}
-	writeJSON(w, map[string]any{"dialog": ParseDialog(screen)})
+	writeJSON(w, map[string]any{"dialog": parseDialogFor(a.Agent, screen)})
 }
 
 // handleChoose selects one item of the visible dialog. The client sends the
@@ -509,7 +540,7 @@ func (s *Server) handleChoose(w http.ResponseWriter, r *http.Request, a herdr.Ag
 		s.herdrError(w, err)
 		return
 	}
-	d := ParseDialog(screen)
+	d := parseDialogFor(a.Agent, screen)
 	if d == nil || d.Cursor < 0 || body.Index < 0 || body.Index >= len(d.Items) {
 		httpError(w, http.StatusConflict, "dialog changed; reload")
 		return
@@ -571,10 +602,18 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			if a.SessionID == "" {
 				continue
 			}
-			p, ok := paths[a.SessionID]
+			key := a.Agent + "/" + a.SessionID
+			p, ok := paths[key]
 			if !ok {
-				p, _ = transcript.Locate(s.cfg.ProjectsDir, a.SessionID)
-				paths[a.SessionID] = p
+				// Cache only found paths: a new session's log can appear
+				// after herdr reports its id, so misses are retried on the
+				// next tick.
+				var terr error
+				if p, _, terr = s.transcriptOf(a); terr == nil {
+					paths[key] = p
+				} else {
+					p = ""
+				}
 			}
 			if p != "" {
 				sizes[a.Host+"/"+a.PaneID] = transcript.Size(p)

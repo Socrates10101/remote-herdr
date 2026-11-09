@@ -2,7 +2,7 @@
 
 English: [README.md](README.md)
 
-herdr のペインで動いている Claude Code セッションを、tailnet 内のスマホや PC のブラウザから
+herdr のペインで動いている Claude Code と Codex（Codex CLI）のセッションを、tailnet 内のスマホや PC のブラウザから
 読んで、プロンプトを送り、承認や選択式の質問に答えるための薄い Web UI です。
 
 - 今動いているセッションに、そのまま接続します（ラッパーで起動し直す必要はありません）。
@@ -19,6 +19,7 @@ herdr のペインで動いている Claude Code セッションを、tailnet �
 |---|---|---|
 | [herdr](https://herdr.dev) | 0.9 以上 | セッション一覧・画面の読み取り・入力（ソケット API） |
 | Claude Code | 2.1 系で確認 | 会話記録（`~/.claude/projects`）と確認ダイアログの形式 |
+| Codex CLI | 0.166 で確認 | 会話記録（`~/.codex/sessions`）と承認・質問の画面の形式。herdr の Codex 連携（`herdr integration install codex`）が入っていること |
 | Tailscale | `tailscale serve` が使えること | HTTPS 化と、tailnet 内だけへの公開・ユーザー識別 |
 | Go / Node.js / pnpm | 1.26+ / 22+ / 11+ | ビルド時のみ |
 
@@ -78,11 +79,14 @@ macOS 向けの launchd 設定はまだ用意していません。
 
 - **一覧**: herdr の全セッションが「承認が必要 / 作業中 / そのほか」に分かれて並びます。
   PC 幅では左のサイドバー、スマホでは最初の画面です。
-- **会話**: Claude の出力と、ツール呼び出し（1 行ずつ、タップで中身）を表示します。
-  下の入力欄から送ったプロンプトは、端末の Claude にそのまま入力されます。
+- **会話**: エージェント（Claude・Codex）の出力と、ツール呼び出し（1 行ずつ、タップで中身）を表示します。
+  Codex ではコマンドとその出力・ファイルの変更・Web 検索などがツール呼び出しとして並びます。
+  下の入力欄から送ったプロンプトは、端末のエージェントにそのまま入力されます。
   作業中は送信ボタンが中断ボタン（Esc）に変わります。
 - **答える**: 権限確認や選択式の質問が出ると、選択肢がボタンで並びます。
   複数選択は項目を選んでから Submit。自由入力（Type something）だけは端末で答えます。
+  Codex では、コマンド実行・ファイル編集の承認、フォルダの信頼確認、質問（request_user_input）に答えられます。
+  キャンセル（Esc）は Codex では「No, and tell Codex what to do differently」と同じで、その回の作業が止まります。
 - **ファイル**: セッションの作業ディレクトリを読み取り専用で見られます（画像・PDF・md・tex など）。
   `.` で始まるファイルやディレクトリは表示しません。
 - **プレビュー**（任意）: `-preview-dir` を指定すると、セッションに「プレビュー」タブと、一覧に
@@ -94,7 +98,7 @@ macOS 向けの launchd 設定はまだ用意していません。
 ### 注意
 
 - 端末で入力の途中にスマホから送ると、入力欄の文字と混ざります。
-- `!` で始まる入力（Claude Code のシェル実行）は既定では送れません（`-allow-shell` で許可できます。
+- `!` で始まる入力（Claude Code・Codex のシェル実行）は既定では送れません（`-allow-shell` で許可できます。
   許可すると、この UI に入れる端末からこのマシンのコマンドを確認なしで実行できる状態になります）。
   スラッシュコマンドも既定では送れません（`-allow-slash /compact` のように個別に許可できます）。
 
@@ -110,7 +114,7 @@ macOS 向けの launchd 設定はまだ用意していません。
   -preview-app-ports 8461,8462     # 動く画面用のポート（任意。使用中かどうかを表示）
 ```
 
-- 置く側が `<name>/.session` にセッション ID（`$CLAUDE_CODE_SESSION_ID`）を 1 行書くと、確実に紐づきます。
+- 置く側が `<name>/.session` にセッション ID（Claude Code は `$CLAUDE_CODE_SESSION_ID`、Codex は `$CODEX_THREAD_ID`）を 1 行書くと、確実に紐づきます。
   書かなくても、会話の中でその URL を最後に出した、開いているセッションに紐づきます。
 - remote-herdr はプレビューを配りも消しもしません。表示は別オリジンのページを埋め込む形で、
   埋め込まれたページから remote-herdr の操作はできません。
@@ -136,7 +140,8 @@ macOS 向けの launchd 設定はまだ用意していません。
 | `unexpected host`（421） | `-origin` がブラウザで開いている URL（ポート込み）と一致しているか |
 | 一覧が空・`herdr unavailable` | `herdr status server` の `socket:` を `-herdr-socket` に指定する |
 | 会話が表示されない | `CLAUDE_CONFIG_DIR` を使っているなら、その下の `projects` を `-projects-dir` に指定する |
-| 選択肢が出ない | Claude Code の画面の形が変わった可能性。端末で答え、画面の内容を issue で共有する |
+| Codex の会話が表示されない | herdr の Codex 連携が入っているか（`herdr integration status`）。`CODEX_HOME` を変えているなら、その下の `sessions` を `-codex-sessions-dir` に指定する。最初のプロンプトを送るまではセッション ID がないので空のまま |
+| 選択肢が出ない | Claude Code / Codex の画面の形が変わった可能性。端末で答え、画面の内容を issue で共有する |
 
 原因を調べるときは `-access-log` を付けると、リクエストごとの結果が記録されます（プロンプトの本文は記録しません）。
 
@@ -148,10 +153,11 @@ macOS 向けの launchd 設定はまだ用意していません。
 | `-allow-user` | （必須） | 許可する Tailscale ログイン（カンマ区切り） |
 | `-listen` | `unix:$XDG_RUNTIME_DIR/remote-herdr/remote-herdr.sock` | `unix:/path` か `tcp:127.0.0.1:PORT`（loopback のみ） |
 | `-allow-slash` | なし | リモートから送ってよいスラッシュコマンド（カンマ区切り） |
-| `-allow-shell` | オフ | `!` で始まる入力（Claude Code のシェル実行）を許可する |
+| `-allow-shell` | オフ | `!` で始まる入力（Claude Code・Codex のシェル実行）を許可する |
 | `-herdr-socket` | `$HERDR_SOCKET_PATH` か `~/.config/herdr/herdr.sock` | herdr の API ソケット |
 | `-projects-dir` | `$CLAUDE_CONFIG_DIR/projects`（未設定なら `~/.claude/projects`） | Claude Code の会話記録 |
 | `-sessions-dir` | `$CLAUDE_CONFIG_DIR/sessions`（未設定なら `~/.claude/sessions`） | 動いているセッションの一覧。fork したセッションの会話記録を探すのに使う |
+| `-codex-sessions-dir` | `$CODEX_HOME/sessions`（未設定なら `~/.codex/sessions`） | Codex の会話記録。絶対パスで指定する。空にすると Codex の会話記録を読まない |
 | `-host-name` | hostname | 画面に出すマシン名（将来の複数ホスト対応用） |
 | `-preview-dir` | なし | プレビューの置き場（`<project>/<name>/`）。指定するとプレビュー機能が有効になる |
 | `-preview-origin` | なし | 置き場を配っている URL（`https://host:port`）。`-preview-dir` と一緒に必須 |

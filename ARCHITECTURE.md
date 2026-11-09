@@ -1,6 +1,6 @@
 # remote-herdr アーキテクチャ
 
-herdr のペインで動いている Claude Code セッションを、スマホや PC のブラウザから
+herdr のペインで動いている Claude Code と Codex（Codex CLI）のセッションを、スマホや PC のブラウザから
 見て、プロンプトを送り、承認・拒否するための薄い UI。
 
 ## 目的と非目的
@@ -20,6 +20,7 @@ tailscale serve ──(unix socket 0600)──▶ remote-herdr（Go, 単一バ�
                                           ├─ herdr ソケット API（agent.list/read/prompt/send_keys）
                                           ├─ ~/.claude/projects/*/<session>.jsonl（読み取りのみ）
                                           ├─ ~/.claude/sessions/<pid>.json（読み取りのみ）
+                                          ├─ ~/.codex/sessions/YYYY/MM/DD/rollout-*-<session>.jsonl（読み取りのみ）
                                           ├─ プレビューの置き場（任意・読み取りのみ。中身は配らない）
                                           └─ 埋め込み UI（Vite + Svelte のビルド成果物）
 ```
@@ -28,7 +29,8 @@ tailscale serve ──(unix socket 0600)──▶ remote-herdr（Go, 単一バ�
 |---|---|---|
 | サーバー | Go 標準ライブラリのみ | `cmd/`, `internal/` |
 | herdr 連携 | herdr の unix ソケット JSON API（1 リクエスト 1 行） | `internal/herdr` |
-| 会話記録 | Claude Code の JSONL を読み取り専用で正規化 | `internal/transcript` |
+| 会話記録 | Claude Code の JSONL と Codex の rollout JSONL を読み取り専用で同じ形に正規化 | `internal/transcript` |
+| 選択ダイアログ | 画面のテキストから選択肢を読む（Claude Code は `❯`、Codex は `›` のリスト） | `internal/server/dialog.go`, `dialog_codex.go` |
 | ファイル閲覧 | エージェントの cwd 配下を読み取り専用で配信 | `internal/files` |
 | プレビュー | 置き場の一覧と持ち主のセッション（任意） | `internal/previews`, `internal/server/previews.go` |
 | UI | Vite + TypeScript + Svelte 5、pnpm | `web/` |
@@ -50,13 +52,16 @@ herdr の CLI ではなくソケット API を使う。CLI は `--` 区切りに
    cookie を使わないため、セッション奪取の対象もない。
 5. **API の範囲**: 一覧、画面読み取り、会話記録、ファイル一覧・読み取り、プレビューの一覧（任意）、
    プロンプト送信、承認・拒否、中断のみ。書き込み・実行・起動・削除の API を追加しない。
-6. **プロンプト**: `!` 始まり（Claude Code のシェル実行）は既定で拒否し、`--allow-shell` を付けたときだけ通す
+6. **プロンプト**: `!` 始まり（Claude Code・Codex のシェル実行）は既定で拒否し、`--allow-shell` を付けたときだけ通す
    （tailnet 内の許可ユーザーとして届く端末が、そのままこのマシンのシェルになる）。`/` 始まりは `--allow-slash` で
    許可したものだけ。改行・タブ以外の制御文字（エスケープシーケンス、bracketed paste）を拒否。
    承認待ち（blocked）のエージェントには送らない。
-7. **承認・選択**: blocked のときだけ受け付ける。画面の選択肢（`❯` カーソル付きの番号行・Submit 行）を
-   サーバー側で読み取り、選ばれた行までの ↑↓ と Enter だけを送る。クライアントが見た行の文言と
+7. **承認・選択**: blocked のときだけ受け付ける。画面の選択肢（Claude Code は `❯`、Codex は `›` カーソル付きの
+   番号行・Submit 行）をサーバー側で読み取り、選ばれた行までの ↑↓ と Enter だけを送る。クライアントが見た行の文言と
    今の画面が一致しないときは何も送らない。自由入力（Type something）は端末で答える。キャンセルは Esc。
+   どちらの読み方を使うかは herdr が報告するエージェントの種類で決める。Codex の選択肢は、画面の最後の行が
+   Enter と Esc を案内するキー説明のときだけ、そのすぐ上のリストから読み、カーソルがちょうど 1 つあることを求める
+   （履歴にある利用者のプロンプトや番号付きの文を選択肢と取り違えないため）。
 8. **ファイル**: cwd 配下のみ。シンボリックリンクを解決した後も cwd 内であること。
    `.` で始まるパス要素（.env, .git, .claude …）は拒否。画像・PDF は種類を限定し、
    応答に `Content-Security-Policy: sandbox` を付ける。テキストは UTF-8 かつ 2MB 以下。
@@ -95,7 +100,7 @@ remote-herdr は配信も削除もしない。プレビューの寿命は
 
 持ち主のセッションは次の順で決める。
 
-1. 置き場の `.session`（1 行目がセッション ID）。置く側が `$CLAUDE_CODE_SESSION_ID` を書く。
+1. 置き場の `.session`（1 行目がセッション ID）。置く側が `$CLAUDE_CODE_SESSION_ID`（Codex では `$CODEX_THREAD_ID`）を書く。
 2. 無ければ、開いているセッションの会話記録で最後にその URL を出したもの。数えるのはアシスタントの本文と、
    ツールの出力で URL だけが 1 行になっている行（置くスクリプトの出力の形）。ユーザーが貼った URL や、
    検索結果・読んだ文書の中の URL は数えない。
@@ -108,7 +113,14 @@ remote-herdr は配信も削除もしない。プレビューの寿命は
 - 端末で入力途中のときにスマホから送ると、入力欄の文字と混ざる。送信前に端末を確認する。
 - JSONL は Claude Code の内部形式で、版によって変わる。会話タブは最善努力で、
   確実な表示は「画面」タブ（herdr の画面読み取り）。
-- fork したセッションはペインの外でバックグラウンドとして動き、ペインには `claude attach` や
+- Codex の rollout JSONL も内部形式。Codex 自身が表示に使う `item_completed` のイベントだけを読む
+  （0.166 で確認）。思考の内容は Claude Code と同じく表示しない。拒否・中断して実行されなかった操作は
+  記録に残らないので、会話タブにも出ない。
+- Codex のセッション ID は、herdr の Codex 連携（SessionStart フック）が報告する。最初のプロンプトまでは
+  ID がないため、会話タブは空になる。会話記録はセッション ID を名前に含む rollout ファイルから探す。
+- Codex の承認画面の文脈は、ダイアログ自体の文（コマンド・理由・編集先）だけを出す。ファイル編集の差分は
+  承認前は端末で、承認後は会話タブで見る。
+- Claude Code で fork したセッションはペインの外でバックグラウンドとして動き、ペインには `claude attach` や
   `claude agents` しかない。herdr はセッション ID を返さないので、`~/.claude/sessions/<pid>.json` の
   `kind: bg` のうち、`name` がペインのタイトルと一致し `cwd` も同じものを 1 件だけ見つけたときに使う。
   一致が 0 件か 2 件以上なら会話タブは空になる（取り違えを防ぐため）。

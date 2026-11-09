@@ -2,8 +2,11 @@
   import { api, type Agent } from '../lib/api'
   import Icon from './Icon.svelte'
   import { shellAllowed } from '../lib/home.svelte'
+  import { agentName } from '../lib/agents'
 
   let { agent }: { agent: Agent } = $props()
+
+  const name = $derived(agentName(agent.agent))
 
   let text = $state('')
   let busy = $state(false)
@@ -69,11 +72,11 @@
     bind:value={text}
     {onkeydown}
     rows="1"
-    placeholder="Claude に送る"
+    placeholder={`${name} に送る`}
     aria-label="プロンプト"
   ></textarea>
   <div class="composer-row">
-    <span class="hint">⌘ または Ctrl + Enter で送信 · 端末の Claude にそのまま入力されます</span>
+    <span class="hint">⌘ または Ctrl + Enter で送信 · 端末の {name} にそのまま入力されます</span>
     <span class="spacer"></span>
     {#if agent.status === 'working' && !text.trim()}
       <button class="send stop" disabled={busy} onclick={interrupt} aria-label="作業を中断">

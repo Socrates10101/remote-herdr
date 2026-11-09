@@ -1,7 +1,8 @@
-// Package transcript reads Claude Code session logs (~/.claude/projects/*/<id>.jsonl)
-// and normalises the user/assistant entries for display.
+// Package transcript reads agent session logs and normalises the user and
+// assistant entries for display: Claude Code's (~/.claude/projects/*/<id>.jsonl)
+// and Codex's (~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl).
 //
-// The JSONL format is internal to Claude Code and changes between releases, so
+// Both formats are internal to their tools and change between releases, so
 // parsing is best-effort: unknown entry and block types are skipped.
 package transcript
 
@@ -64,14 +65,19 @@ func Locate(projectsDir, sessionID string) (string, error) {
 	if len(matches) == 0 {
 		return "", ErrNotFound
 	}
-	// Prefer the most recently modified copy if a session was moved.
+	return newest(matches), nil
+}
+
+// newest returns the most recently modified of paths, so a session that was
+// moved or copied resolves to its live log.
+func newest(paths []string) string {
 	best, bestTime := "", int64(-1)
-	for _, m := range matches {
+	for _, m := range paths {
 		if fi, err := os.Stat(m); err == nil && fi.ModTime().UnixNano() > bestTime {
 			best, bestTime = m, fi.ModTime().UnixNano()
 		}
 	}
-	return best, nil
+	return best
 }
 
 // Size returns the log size, used by the UI to detect changes cheaply.
@@ -83,8 +89,18 @@ func Size(path string) int64 {
 	return fi.Size()
 }
 
-// Load parses the tail of the log and returns at most limit messages.
+// Loader reads the tail of a session log and returns at most limit messages
+// (0 = all in the tail) and the log size. Load and LoadCodex are Loaders.
+type Loader func(path string, limit int) ([]Message, int64, error)
+
+// Load parses the tail of a Claude Code log and returns at most limit messages.
 func Load(path string, limit int) ([]Message, int64, error) {
+	return loadTail(path, limit, Parse)
+}
+
+// loadTail reads at most MaxTailBytes from the end of the log and parses it
+// with parse; the format-specific part is only the parser.
+func loadTail(path string, limit int, parse func([]byte) []Message) ([]Message, int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, 0, err
@@ -112,7 +128,7 @@ func Load(path string, limit int) ([]Message, int64, error) {
 			data = data[i+1:]
 		}
 	}
-	msgs := Parse(data)
+	msgs := parse(data)
 	if limit > 0 && len(msgs) > limit {
 		msgs = msgs[len(msgs)-limit:]
 	}
