@@ -1,0 +1,40 @@
+
+  >_ OpenAI Codex (v0.166.0)
+     /tmp/rh-codex-demo
+
+
+› Run the shell command: echo hi > hello.txt  (just run it; if the sandbox blocks it, request approval to run it
+  outside the sandbox)
+
+
+• I’ll run the command and request approval if the sandbox blocks it.
+
+✔ You approved codex to run echo hi > hello.txt this time
+
+• Ran echo hi > hello.txt
+  └ (no output)
+
+• Done. Created hello.txt containing hi.
+
+  Worked for 1m 6s • 12:04 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+› Ask Codex to do anything
+
+  GPT-6-Astra medium · /tmp/rh-codex-demo · Run echo command
+  ? for shortcuts                                                                             ⚠ 1 warning · f2 to view

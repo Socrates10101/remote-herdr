@@ -17,8 +17,9 @@ func ValidPaneID(s string) bool { return paneIDPattern.MatchString(s) }
 
 // ValidatePrompt enforces what a remote prompt may contain.
 //
-//   - Leading "!" is refused unless allowShell is set: Claude Code runs it
-//     as a shell command without a permission prompt.
+//   - Leading "!" is refused unless allowShell is set: it is the shell mode
+//     of Claude Code and Codex, which run it as a shell command without a
+//     permission prompt.
 //   - Leading "/" is refused unless the command is allow-listed.
 //   - Control characters other than newline and tab are refused so text
 //     cannot inject terminal escape or bracketed-paste sequences.

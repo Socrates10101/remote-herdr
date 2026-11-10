@@ -1,5 +1,5 @@
-// Command remote-herdr serves a small web UI for the Claude Code sessions
-// running in herdr panes. Put it behind `tailscale serve`; see README.md.
+// Command remote-herdr serves a small web UI for the Claude Code and Codex
+// sessions running in herdr panes. Put it behind `tailscale serve`; see README.md.
 package main
 
 import (
@@ -77,10 +77,23 @@ func run() error {
 	}
 	projects := flag.String("projects-dir", filepath.Join(claudeDir, "projects"), "Claude Code projects directory ($CLAUDE_CONFIG_DIR/projects)")
 	sessions := flag.String("sessions-dir", filepath.Join(claudeDir, "sessions"), "Claude Code running-session registry ($CLAUDE_CONFIG_DIR/sessions), used to find forked sessions")
+	codexHome := os.Getenv("CODEX_HOME")
+	if codexHome == "" && home != "" {
+		codexHome = filepath.Join(home, ".codex")
+	}
+	codexDefault := "" // no home directory: Codex transcripts stay off
+	if codexHome != "" {
+		codexDefault = filepath.Join(codexHome, "sessions")
+	}
+	codexSessions := flag.String("codex-sessions-dir", codexDefault, "Codex session logs ($CODEX_HOME/sessions); must be absolute, empty disables Codex transcripts")
 	previewDir := flag.String("preview-dir", "", "folder of published previews as <project>/<name>/, e.g. ~/previews (enables the preview tab)")
 	previewOrigin := flag.String("preview-origin", "", "origin that serves -preview-dir, e.g. https://host.tailnet.ts.net:8460")
 	previewApps := flag.String("preview-app-ports", "", "comma-separated ports on the preview host used for running apps, e.g. 8461,8462")
 	flag.Parse()
+	// A relative dir would be searched relative to the process cwd.
+	if *codexSessions != "" && !filepath.IsAbs(*codexSessions) {
+		return fmt.Errorf("-codex-sessions-dir must be an absolute path (default $CODEX_HOME/sessions), got %q", *codexSessions)
+	}
 
 	appPorts, err := parsePorts(*previewApps)
 	if err != nil {
@@ -88,20 +101,21 @@ func run() error {
 	}
 
 	srv, err := server.New(server.Config{
-		Herdr:           &herdr.Client{SocketPath: *herdrSock},
-		ProjectsDir:     *projects,
-		SessionsDir:     *sessions,
-		AllowedUsers:    splitSet(*allowUsers),
-		Origin:          *origin,
-		AllowedSlash:    splitSet(*allowSlash),
-		AllowShell:      *allowShell,
-		Static:          web.Dist(),
-		HostName:        *hostName,
-		AccessLog:       *accessLog,
-		PreviewDir:      *previewDir,
-		PreviewOrigin:   *previewOrigin,
-		PreviewAppPorts: appPorts,
-		Logger:          log.New(os.Stderr, "", log.LstdFlags),
+		Herdr:            &herdr.Client{SocketPath: *herdrSock},
+		ProjectsDir:      *projects,
+		SessionsDir:      *sessions,
+		CodexSessionsDir: *codexSessions,
+		AllowedUsers:     splitSet(*allowUsers),
+		Origin:           *origin,
+		AllowedSlash:     splitSet(*allowSlash),
+		AllowShell:       *allowShell,
+		Static:           web.Dist(),
+		HostName:         *hostName,
+		AccessLog:        *accessLog,
+		PreviewDir:       *previewDir,
+		PreviewOrigin:    *previewOrigin,
+		PreviewAppPorts:  appPorts,
+		Logger:           log.New(os.Stderr, "", log.LstdFlags),
 	})
 	if err != nil {
 		return err

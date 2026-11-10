@@ -35,8 +35,8 @@ Restrained strategy: warm neutrals plus the one clay accent. Terminal and approv
 
 - Layout: 268px sidebar (>820px) + main column; 56px top bar; thread max 880px; dock max 1000px.
 - Top bar: title (and cwd on wide screens) on the left, 会話 / ファイル tabs on the right edge with a 2px accent underline; a back chevron only on phones.
-- Sidebar: brand row (56px), status groups (承認が必要 / 作業中 / そのほか) as 12px labels, 13.5px rows with 8px radius, owner login in the footer.
-- Messages: owner's message as an 18px-radius bubble (max 70%); the agent's turn as a 26px mark column plus a "Claude · time" header, then prose.
+- Sidebar: brand row (56px), status groups (承認が必要 / 作業中 / そのほか) as 12px labels, 13.5px rows with 8px radius, owner login in the footer. The row's meta line names the agent (Claude / Codex) only when both kinds are listed.
+- Messages: owner's message as an 18px-radius bubble (max 70%); the agent's turn as a 26px mark column plus an "<agent> · time" header (Claude or Codex), then prose.
 - Tool calls: one-line rows between hairlines (chevron, tool name, mono argument), packed into one run; expand to a code block.
 - Code blocks: bordered 10px-radius box with a header row (language, コピー).
 - Composer: 24px-radius box (20px on phones), textarea 15px, a lower row with the shortcut hint and a 36px round send button (stop while working).

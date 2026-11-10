@@ -2,6 +2,7 @@
   import { refKey, type Agent } from '../lib/api'
   import Spark from './Spark.svelte'
   import { shortPath } from '../lib/home.svelte'
+  import { agentName } from '../lib/agents'
 
   let {
     agents,
@@ -29,6 +30,9 @@
 
   // Host names only matter once more than one machine is listed.
   const multiHost = $derived(new Set(agents.map((a) => a.host)).size > 1)
+
+  // Agent names only matter once Claude and Codex panes are mixed.
+  const multiKind = $derived(new Set(agents.map((a) => a.agent)).size > 1)
 
   const statusText: Record<string, string> = { idle: '待機中', done: '完了', unknown: '状態不明' }
 
@@ -64,7 +68,7 @@
               </span>
               <span class="conv-main">
                 <span class="t">{a.title || a.paneId}</span>
-                <span class="conv-meta">{multiHost ? `${a.host} · ` : ''}{place(a.cwd)}</span>
+                <span class="conv-meta">{multiHost ? `${a.host} · ` : ''}{multiKind ? `${agentName(a.agent)} · ` : ''}{place(a.cwd)}</span>
               </span>
               {#if a.status === 'blocked'}
                 <span class="wait">承認待ち</span>

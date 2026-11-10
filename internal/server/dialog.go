@@ -11,7 +11,8 @@ import (
 //
 // Every such dialog is a list with a "❯" cursor. Choosing item i means
 // moving the cursor with up/down and pressing Enter; that is all the server
-// ever sends for it.
+// ever sends for it. The struct is shared with the Codex parser
+// (ParseCodexDialog), whose lists use a "›" cursor.
 type Dialog struct {
 	Context []string     `json:"context"` // question / command text above the options
 	Items   []DialogItem `json:"items"`

@@ -5,23 +5,23 @@
 web
 
 ## Users
-The owner of the host machine (each person runs their own instance for their own herdr). They run several Claude Code sessions in parallel inside herdr panes and use remote-herdr mainly from an iPhone (Safari, added to the home screen) to follow those sessions away from the desk. If it reads well, it may become the everyday way to read sessions, including on a PC browser.
+The owner of the host machine (each person runs their own instance for their own herdr). They run several Claude Code and Codex sessions in parallel inside herdr panes and use remote-herdr mainly from an iPhone (Safari, added to the home screen) to follow those sessions away from the desk. If it reads well, it may become the everyday way to read sessions, including on a PC browser.
 
 ## Product Purpose
-Make the output of running Claude Code sessions comfortable to read from a phone, and let the owner answer approvals or send a short instruction without opening a terminal. Success means the owner prefers reading a session here over squinting at a terminal screen.
+Make the output of running agent sessions (Claude Code, Codex) comfortable to read from a phone, and let the owner answer approvals or send a short instruction without opening a terminal. Success means the owner prefers reading a session here over squinting at a terminal screen.
 
 ## Positioning
 Not an agent platform: it adds no accounts, relays, or new execution paths. It attaches to the sessions already running in herdr, shows them with proper markdown, math, code and images, and can only do what a person at the terminal would do with a prompt, Enter, or Esc.
 
 ## Operating Context
 - Reached only through `tailscale serve` inside the owner's tailnet; identity comes from the Tailscale login.
-- Sessions are herdr panes running the Claude Code TUI; the same session may be typed into from the terminal at any time.
+- Sessions are herdr panes running the Claude Code or Codex TUI; the same session may be typed into from the terminal at any time.
 - Content is mostly long assistant answers in Japanese and English with markdown, tables, LaTeX math, code, tool calls and occasional images; also project files (`.md`, `.tex`, images, PDFs).
 
 ## Capabilities and Constraints
 - Read: agent list with status (blocked / working / idle / done), conversation transcript, terminal screen text, project files (read-only, no dotfiles), and (opt-in) the HTML previews each session published, opened as links to the separate preview server.
-- Act: send a prompt; answer a selection dialog (permission prompts, AskUserQuestion single/multi select) by moving the cursor and pressing Enter; cancel or interrupt (Esc).
-- Never: write files, start agents, or add execution paths of its own. Prompts starting with `!` (Claude Code shell mode) are refused unless the owner starts the server with `-allow-shell`.
+- Act: send a prompt; answer a selection dialog (Claude Code permission prompts and AskUserQuestion single/multi select; Codex approvals, folder trust and request_user_input questions) by moving the cursor and pressing Enter; cancel or interrupt (Esc).
+- Never: write files, start agents, or add execution paths of its own. Prompts starting with `!` (the shell mode of Claude Code and Codex) are refused unless the owner starts the server with `-allow-shell`.
 - UI copy is Japanese.
 
 ## Brand Commitments

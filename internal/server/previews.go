@@ -54,8 +54,8 @@ func (s *Server) previewsEnabled() bool { return s.cfg.PreviewDir != "" }
 // (what a publishing script prints). User text is ignored, so a pasted link
 // does not make a session the owner; neither do URLs inside search results
 // or documents the session read.
-func (s *Server) mentions(sessionID string) map[string]string {
-	path, err := transcript.Locate(s.cfg.ProjectsDir, sessionID)
+func (s *Server) mentions(a herdr.Agent) map[string]string {
+	path, load, err := s.transcriptOf(a)
 	if err != nil {
 		return nil
 	}
@@ -67,7 +67,7 @@ func (s *Server) mentions(sessionID string) map[string]string {
 	}
 	s.mcache.mu.Unlock()
 
-	msgs, size, err := transcript.Load(path, 0)
+	msgs, size, err := load(path, 0)
 	if err != nil {
 		return nil
 	}
@@ -113,7 +113,7 @@ func (s *Server) resolvePreviews(agents []herdr.Agent) ([]previewItem, error) {
 			continue
 		}
 		live[a.SessionID] = a
-		for k, at := range s.mentions(a.SessionID) {
+		for k, at := range s.mentions(a) {
 			if cur, ok := mentioned[k]; !ok || at > cur.at {
 				mentioned[k] = mention{a.SessionID, at}
 			}
