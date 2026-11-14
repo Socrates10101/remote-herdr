@@ -6,8 +6,7 @@
 // http(s)/relative links. The strict CSP is the last line of defence.
 
 import MarkdownIt from 'markdown-it'
-import texmath from 'markdown-it-texmath'
-import katex from 'katex'
+import mathPlugin from './math'
 import DOMPurify from 'dompurify'
 import hljs from './highlight'
 import { fileURL, type AgentRef } from './api'
@@ -33,9 +32,7 @@ function highlight(code: string, lang: string): string {
 
 function createMd() {
   const md = new MarkdownIt({ html: false, linkify: true, typographer: false, breaks: false, highlight })
-  md.use(texmath, {
-    engine: katex,
-    delimiters: ['dollars', 'brackets'],
+  md.use(mathPlugin, {
     katexOptions: { throwOnError: false, trust: false, strict: 'ignore', output: 'htmlAndMathml' },
   })
   // Code fences get a header with the language and a copy control
@@ -99,6 +96,12 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 
 const purifyConfig = {
   USE_PROFILES: { html: true, mathMl: true, svg: true },
+  // KaTeX wraps its MathML in <semantics> with a text-only <annotation>
+  // holding the TeX source. DOMPurify drops both by default and leaves the
+  // source as a stray text node, so allow these two (text-only) elements.
+  // annotation-xml (an HTML integration point) stays forbidden.
+  ADD_TAGS: ['semantics', 'annotation'],
+  ADD_ATTR: ['encoding'],
   FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'iframe', 'object', 'embed'],
   FORBID_ATTR: ['srcset'],
 }

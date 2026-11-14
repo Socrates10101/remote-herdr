@@ -11,6 +11,7 @@ test:
 	go vet ./...
 	go test ./...
 	pnpm -C web check
+	pnpm -C web test
 
 clean:
 	rm -f remote-herdr
